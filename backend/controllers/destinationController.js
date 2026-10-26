@@ -103,8 +103,86 @@ const getDestinationById = async (req, res) => {
   }
 };
 
+
+const updateDestination = async (req, res) => {
+  try {
+    const destination = await Destination.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!destination) {
+      return res.status(404).json({
+        message: "Destination not found."
+      });
+    }
+
+    return res.status(200).json({
+      message: "Destination updated successfully.",
+      destination
+    });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid destination ID."
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: error.message
+      });
+    }
+
+    console.error("Update destination error:", error.message);
+
+    return res.status(500).json({
+      message: "Failed to update destination."
+    });
+  }
+};
+
+
+const deleteDestination = async (req, res) => {
+  try {
+    const destination = await Destination.findByIdAndDelete(
+      req.params.id
+    );
+
+    if (!destination) {
+      return res.status(404).json({
+        message: "Destination not found."
+      });
+    }
+
+    return res.status(200).json({
+      message: "Destination deleted successfully.",
+      destination
+    });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid destination ID."
+      });
+    }
+
+    console.error("Delete destination error:", error.message);
+
+    return res.status(500).json({
+      message: "Failed to delete destination."
+    });
+  }
+};
+
+
 module.exports = {
   createDestination,
   getAllDestinations,
-  getDestinationById
+  getDestinationById,
+  updateDestination,
+  deleteDestination
 };
