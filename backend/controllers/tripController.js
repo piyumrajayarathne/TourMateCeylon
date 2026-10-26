@@ -127,7 +127,156 @@ const getMyTrips = async (req, res) => {
   }
 };
 
+const updateTrip = async (req, res) => {
+  try {
+    const { tripId } = req.params;
+
+    const trip = await Trip.findOne({
+      _id: tripId,
+      travelerId: req.userId
+    });
+
+    if (!trip) {
+      return res.status(404).json({
+        message: "Trip not found."
+      });
+    }
+
+    const allowedFields = [
+      "tripName",
+      "numberOfTravelers",
+      "startDate",
+      "endDate",
+      "totalBudget",
+      "currency",
+      "tripStatus",
+      "destinations"
+    ];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        trip[field] = req.body[field];
+      }
+    }
+
+    if (
+      !trip.tripName ||
+      !Number.isInteger(Number(trip.numberOfTravelers)) ||
+      Number(trip.numberOfTravelers) < 1 ||
+      !Number.isFinite(Number(trip.totalBudget)) ||
+      Number(trip.totalBudget) < 0
+    ) {
+      return res.status(400).json({
+        message: "Please provide valid trip details."
+      });
+    }
+
+    if (
+      new Date(trip.startDate) > new Date(trip.endDate)
+    ) {
+      return res.status(400).json({
+        message: "End date must be on or after the start date."
+      });
+    }
+
+    if (!Array.isArray(trip.destinations)) {
+      return res.status(400).json({
+        message: "Destinations must be an array."
+      });
+    }
+
+    if (trip.destinations.length > 0) {
+      const foundCount = await Destination.countDocuments({
+        _id: { $in: trip.destinations }
+      });
+
+      if (foundCount !== new Set(trip.destinations.map(String)).size) {
+        return res.status(400).json({
+          message: "One or more destination IDs are invalid."
+        });
+      }
+    }
+
+    trip.tripName = trip.tripName.trim();
+    trip.numberOfTravelers = Number(trip.numberOfTravelers);
+    trip.totalBudget = Number(trip.totalBudget);
+
+    const Expense = require("../models/expense");
+    const expenses = await Expense.aggregate([
+      { $match: { tripId: trip._id } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+
+    trip.totalExpenses = expenses.length ? expenses[0].total : 0;
+    trip.remainingBudget = trip.totalBudget - trip.totalExpenses;
+
+    await trip.save();
+
+    return res.status(200).json({
+      message: "Trip updated successfully.",
+      trip
+    });
+  } catch (error) {
+    if (error.name === "ValidationError" || error.name === "CastError") {
+      return res.status(400).json({
+        message: error.message
+      });
+    }
+
+    console.error("Update trip error:", error.message);
+
+    return res.status(500).json({
+      message: "Failed to update trip."
+    });
+  }
+};
+
+// Delete a trip and its expenses
+const deleteTrip = async (req, res) => {
+  try {
+    const { tripId } = req.params;
+
+    const trip = await Trip.findOne({
+      _id: tripId,
+      travelerId: req.userId
+    });
+
+    if (!trip) {
+      return res.status(404).json({
+        message: "Trip not found."
+      });
+    }
+
+    const Expense = require("../models/expense");
+
+    await Expense.deleteMany({
+      tripId: trip._id,
+      travelerId: req.userId
+    });
+
+    await Trip.deleteOne({ _id: trip._id });
+
+    return res.status(200).json({
+      message: "Trip and associated expenses deleted successfully."
+    });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid trip ID."
+      });
+    }
+
+    console.error("Delete trip error:", error.message);
+
+    return res.status(500).json({
+      message: "Failed to delete trip."
+    });
+  }
+};
+
 module.exports = {
   createTrip,
-  getMyTrips
+  getMyTrips,
+  updateTrip,
+  deleteTrip
 };

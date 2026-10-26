@@ -50,8 +50,7 @@ const tripSchema = new mongoose.Schema(
 
     remainingBudget: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     },
 
     tripStatus: {
