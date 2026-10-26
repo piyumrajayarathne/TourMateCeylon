@@ -4,19 +4,18 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
+const destinationRoutes = require("./routes/destinationRoutes");
 
 const app = express();
 
-// Connect to MongoDB
 connectDB();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/destinations", destinationRoutes);
 
-// Test route
 app.get("/", (req, res) => {
   res.json({
     message: "TourMateCeylon backend is running!"
