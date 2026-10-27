@@ -1,10 +1,13 @@
 import { Routes, Route } from "react-router-dom";
+
 import Navbar from "./Components/Navbar.jsx";
 import Footer from "./Components/Footer.jsx";
+
 import Home from "./pages/Home.jsx";
 import Destinations from "./pages/Destinations.jsx";
-import Events from "./pages/Events";
+import Events from "./pages/Events.jsx";
 import EventDetails from "./pages/EventDetails.jsx";
+import Stays from "./pages/Stays.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -22,9 +25,10 @@ export default function App() {
       <Navbar />
 
       <Routes>
+        {/* Home */}
         <Route path="/" element={<Home />} />
 
-        {/* Destinations page */}
+        {/* Destinations */}
         <Route
           path="/destinations"
           element={<Destinations />}
@@ -40,16 +44,18 @@ export default function App() {
           }
         />
 
-        <Route
-          path="/events"
-          element={<Events />}
-        />
+        {/* Events */}
+        <Route path="/events" element={<Events />} />
 
         <Route
           path="/events/:id"
           element={<EventDetails />}
         />
 
+        {/* Stays */}
+        <Route path="/stays" element={<Stays />} />
+
+        {/* Login and registration */}
         <Route
           path="/login"
           element={
@@ -70,6 +76,7 @@ export default function App() {
           }
         />
 
+        {/* Trips and budget */}
         <Route
           path="/my-trips"
           element={
@@ -90,18 +97,18 @@ export default function App() {
           }
         />
 
-        <Route path="/events" element={<Events />} />
-
+        {/* Other pages not implemented yet */}
         <Route
           path="/hotels"
           element={
             <PlaceholderPage
-              title="Find your stay"
-              description="Explore places to stay during your journey."
+              title="Places to stay"
+              description="Discover accommodation options for your journey."
             />
           }
         />
 
+        {/* 404 - Keep this route last */}
         <Route
           path="*"
           element={

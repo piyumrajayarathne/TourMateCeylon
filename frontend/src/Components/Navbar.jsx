@@ -5,7 +5,7 @@ export default function Navbar({ authenticated = false }) {
     { label: "Home", path: "/" },
     { label: "Destinations", path: "/destinations" },
     { label: "Events", path: "/events" },
-    { label: "Stays", path: "/hotels" },
+    { label: "Stays", path: "/stays" },
   ];
 
   const accountLinks = [
