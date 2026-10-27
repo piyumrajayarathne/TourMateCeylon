@@ -1,6 +1,10 @@
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./Components/Navbar.jsx";
 import Footer from "./Components/Footer.jsx";
+import Home from "./pages/Home.jsx";
+import Destinations from "./pages/Destinations.jsx";
+import Events from "./pages/Events";
+import EventDetails from "./pages/EventDetails.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -12,37 +16,40 @@ function PlaceholderPage({ title, description }) {
   );
 }
 
-function Home() {
-  return (
-    <main className="page-container">
-      <span className="eyebrow">YOUR JOURNEY STARTS HERE</span>
-      <h1 className="page-title">Discover the soul of Sri Lanka.</h1>
-      <p className="page-subtitle">
-        Find extraordinary places, plan your journey, and make
-        unforgettable memories across our island.
-      </p>
-      <a className="button button-primary" href="/destinations">
-        Explore destinations
-      </a>
-    </main>
-  );
-}
-
 export default function App() {
   return (
     <div className="app-shell">
       <Navbar />
+
       <Routes>
         <Route path="/" element={<Home />} />
+
+        {/* Destinations page */}
         <Route
           path="/destinations"
+          element={<Destinations />}
+        />
+
+        <Route
+          path="/destinations/:slug"
           element={
             <PlaceholderPage
-              title="Discover Sri Lanka"
-              description="Explore beaches, mountains, heritage sites, and wildlife."
+              title="Destination details"
+              description="Discover more about this destination."
             />
           }
         />
+
+        <Route
+          path="/events"
+          element={<Events />}
+        />
+
+        <Route
+          path="/events/:id"
+          element={<EventDetails />}
+        />
+
         <Route
           path="/login"
           element={
@@ -52,6 +59,7 @@ export default function App() {
             />
           }
         />
+
         <Route
           path="/register"
           element={
@@ -61,6 +69,7 @@ export default function App() {
             />
           }
         />
+
         <Route
           path="/my-trips"
           element={
@@ -70,6 +79,7 @@ export default function App() {
             />
           }
         />
+
         <Route
           path="/budget"
           element={
@@ -79,15 +89,9 @@ export default function App() {
             />
           }
         />
-        <Route
-          path="/events"
-          element={
-            <PlaceholderPage
-              title="Events & experiences"
-              description="Discover cultural experiences around Sri Lanka."
-            />
-          }
-        />
+
+        <Route path="/events" element={<Events />} />
+
         <Route
           path="/hotels"
           element={
@@ -97,6 +101,7 @@ export default function App() {
             />
           }
         />
+
         <Route
           path="*"
           element={
@@ -107,8 +112,8 @@ export default function App() {
           }
         />
       </Routes>
+
       <Footer />
     </div>
   );
 }
-
