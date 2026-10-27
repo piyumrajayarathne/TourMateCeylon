@@ -1,3 +1,4 @@
+
 import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./Components/Navbar.jsx";
@@ -5,9 +6,11 @@ import Footer from "./Components/Footer.jsx";
 
 import Home from "./pages/Home.jsx";
 import Destinations from "./pages/Destinations.jsx";
+import DestinationDetails from "./pages/DestinationDetails.jsx";
 import Events from "./pages/Events.jsx";
 import EventDetails from "./pages/EventDetails.jsx";
 import Stays from "./pages/Stays.jsx";
+import StayDetails from "./pages/StayDetails.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -36,12 +39,7 @@ export default function App() {
 
         <Route
           path="/destinations/:slug"
-          element={
-            <PlaceholderPage
-              title="Destination details"
-              description="Discover more about this destination."
-            />
-          }
+          element={<DestinationDetails />}
         />
 
         {/* Events */}
@@ -55,7 +53,12 @@ export default function App() {
         {/* Stays */}
         <Route path="/stays" element={<Stays />} />
 
-        {/* Login and registration */}
+        <Route
+          path="/stays/:id"
+          element={<StayDetails />}
+        />
+
+        {/* Login */}
         <Route
           path="/login"
           element={
@@ -66,6 +69,7 @@ export default function App() {
           }
         />
 
+        {/* Registration */}
         <Route
           path="/register"
           element={
@@ -76,7 +80,7 @@ export default function App() {
           }
         />
 
-        {/* Trips and budget */}
+        {/* My trips */}
         <Route
           path="/my-trips"
           element={
@@ -87,6 +91,7 @@ export default function App() {
           }
         />
 
+        {/* Budget */}
         <Route
           path="/budget"
           element={
@@ -97,13 +102,24 @@ export default function App() {
           }
         />
 
-        {/* Other pages not implemented yet */}
+        {/* My bookings */}
         <Route
-          path="/hotels"
+          path="/bookings"
           element={
             <PlaceholderPage
-              title="Places to stay"
-              description="Discover accommodation options for your journey."
+              title="My bookings"
+              description="View and manage your travel bookings."
+            />
+          }
+        />
+
+        {/* Profile */}
+        <Route
+          path="/profile"
+          element={
+            <PlaceholderPage
+              title="My profile"
+              description="Manage your TourMateCeylon account."
             />
           }
         />
