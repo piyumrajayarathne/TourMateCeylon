@@ -59,6 +59,33 @@ const emptyTrip = {
   budget: "",
 };
 
+// Match trip card images to destination images.
+function getDestinationImage(destination) {
+  const slug = destination
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const destinationImages = {
+    sigiriya:
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Sigiriya%2CSri_Lanka.jpg",
+    ella:
+      "https://www.tracedirecte.com/media/original_images/pont-9-arcs-ella-sri-lanka.jpg.1920x0_q85.jpg",
+    kandy: "/images/kandy.jpg",
+    "galle-fort":
+      "https://upload.wikimedia.org/wikipedia/commons/c/cf/Galle_Fort%2C_Sri_Lanka.JPG",
+    galle:
+      "https://upload.wikimedia.org/wikipedia/commons/c/cf/Galle_Fort%2C_Sri_Lanka.JPG",
+    mirissa:
+      "https://upload.wikimedia.org/wikipedia/commons/6/6d/Mirissa_Sri_lanka.jpg",
+    "nuwara-eliya":
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Nuwara-Eliya.jpg",
+  };
+
+  return destinationImages[slug] || "";
+}
+
 function formatDate(dateString) {
   if (!dateString) return "";
 
@@ -164,22 +191,34 @@ export default function MyTrips() {
       return;
     }
 
-    if (!Number.isInteger(travellers) || travellers < 1 || travellers > 100) {
+    if (
+      !Number.isInteger(travellers) ||
+      travellers < 1 ||
+      travellers > 100
+    ) {
       setError("Enter a number of travellers between 1 and 100.");
       return;
     }
 
-    if (!Number.isFinite(budget) || budget < 0 || form.budget === "") {
+    if (
+      !Number.isFinite(budget) ||
+      budget < 0 ||
+      form.budget === ""
+    ) {
       setError("Enter a valid budget of zero or more LKR.");
       return;
     }
 
-    const existingTrip = trips.find((trip) => trip.id === editingId);
+    const existingTrip = trips.find(
+      (trip) => trip.id === editingId
+    );
 
     const slug = destination
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
+
+    const destinationImage = getDestinationImage(destination);
 
     const tripData = {
       destination,
@@ -194,6 +233,7 @@ export default function MyTrips() {
       duration: getDuration(form.startDate, form.endDate),
       dates: `${formatDate(form.startDate)} – ${formatDate(form.endDate)}`,
       image:
+        destinationImage ||
         existingTrip?.image ||
         "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1200",
     };
@@ -234,8 +274,12 @@ export default function MyTrips() {
   return (
     <main className="my-trips-page">
       <section className="my-trips-hero">
-        <p className="my-trips-eyebrow">YOUR JOURNEY, YOUR STORY</p>
+        <p className="my-trips-eyebrow">
+          YOUR JOURNEY, YOUR STORY
+        </p>
+
         <h1>My Trips</h1>
+
         <p>
           Keep your travel plans together and get ready for
           your next Sri Lankan adventure.
@@ -252,7 +296,9 @@ export default function MyTrips() {
       <section className="my-trips-content">
         <div className="my-trips-heading">
           <div>
-            <p className="my-trips-eyebrow">YOUR TRAVEL PLANNER</p>
+            <p className="my-trips-eyebrow">
+              YOUR TRAVEL PLANNER
+            </p>
             <h2>Journeys to remember</h2>
           </div>
 
@@ -372,7 +418,8 @@ export default function MyTrips() {
                       to={`/destinations/${trip.slug}`}
                       className="my-trip-view-button"
                     >
-                      Explore destination <span aria-hidden="true">→</span>
+                      Explore destination{" "}
+                      <span aria-hidden="true">→</span>
                     </Link>
                   </div>
                 </div>
@@ -406,7 +453,9 @@ export default function MyTrips() {
               ×
             </button>
 
-            <p className="my-trips-eyebrow">YOUR TRAVEL PLANNER</p>
+            <p className="my-trips-eyebrow">
+              YOUR TRAVEL PLANNER
+            </p>
 
             <h2 id="trip-modal-title">
               {modalMode === "create"

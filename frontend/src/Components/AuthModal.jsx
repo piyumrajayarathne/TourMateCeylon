@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+const API_URL = "http://localhost:5000/api/auth";
+
 export default function AuthModal({
   initialMode = "login",
   onClose,
@@ -9,6 +11,7 @@ export default function AuthModal({
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("error");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -29,9 +32,7 @@ export default function AuthModal({
 
   useEffect(() => {
     function handleEscape(event) {
-      if (event.key === "Escape") {
-        onClose?.();
-      }
+      if (event.key === "Escape") onClose?.();
     }
 
     window.addEventListener("keydown", handleEscape);
@@ -54,118 +55,149 @@ export default function AuthModal({
     setMessage("");
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+
+    if (isSubmitting) return;
+
     setMessage("");
 
     const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
 
-    if (!email || !formData.password) {
+    if (!email || !password) {
       setMessage("Please enter your email and password.");
       setMessageType("error");
       return;
     }
 
-    if (mode === "register") {
-      const fullName = formData.fullName.trim();
+    setIsSubmitting(true);
 
-      if (!fullName) {
-        setMessage("Please enter your full name.");
-        setMessageType("error");
+    try {
+      if (mode === "register") {
+        const fullName = formData.fullName.trim();
+        const nameParts = fullName.split(/\s+/);
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ");
+
+        if (!firstName || !lastName) {
+          setMessage("Please enter your first and last name.");
+          setMessageType("error");
+          return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          setMessage("Please enter a valid email address.");
+          setMessageType("error");
+          return;
+        }
+
+        if (password.length < 8) {
+          setMessage("Password must contain at least 8 characters.");
+          setMessageType("error");
+          return;
+        }
+
+        if (password !== formData.confirmPassword) {
+          setMessage("Passwords do not match.");
+          setMessageType("error");
+          return;
+        }
+
+        if (!formData.mobile.trim()) {
+          setMessage("Please enter your mobile number.");
+          setMessageType("error");
+          return;
+        }
+
+        if (!formData.terms) {
+          setMessage("Please accept the terms and conditions.");
+          setMessageType("error");
+          return;
+        }
+
+        const response = await fetch(`${API_URL}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email,
+            password,
+            phoneNumber: formData.mobile.trim(),
+            travelerType: formData.travellerType,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Registration failed.");
+        }
+
+        setMessage("Registration successful! Please log in.");
+        setMessageType("success");
+        setMode("login");
+
+        setFormData((previous) => ({
+          ...previous,
+          password: "",
+          confirmPassword: "",
+        }));
+
         return;
       }
 
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setMessage("Please enter a valid email address.");
-        setMessageType("error");
-        return;
+      const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed.");
       }
 
-      if (formData.password.length < 8) {
-        setMessage("Your password must contain at least 8 characters.");
-        setMessageType("error");
-        return;
+      if (!data.token || !data.user) {
+        throw new Error("The server returned an invalid login response.");
       }
 
-      if (formData.password !== formData.confirmPassword) {
-        setMessage("Passwords do not match.");
-        setMessageType("error");
-        return;
-      }
+      const user = data.user;
 
-      if (!formData.terms) {
-        setMessage("Please accept the terms and conditions.");
-        setMessageType("error");
-        return;
-      }
-
-      const newUser = {
-        fullName,
-        email,
-        mobile: formData.mobile.trim(),
-        travellerType: formData.travellerType,
-        country: formData.country.trim() || "Sri Lanka",
+      const profile = {
+        fullName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email,
+        mobile: user.phoneNumber || "",
+        travellerType: user.travelerType || "Local",
+        country:
+          formData.travellerType === "Foreign"
+            ? formData.country.trim()
+            : "Sri Lanka",
       };
 
-      try {
-        localStorage.setItem(
-          "tourmate-profile",
-          JSON.stringify(newUser)
-        );
-
-        localStorage.setItem(
-          "tourmate-user",
-          JSON.stringify(newUser)
-        );
-
-        localStorage.setItem("tourmate-demo-auth", "true");
-
-        setMessage(
-          "Registration successful! Your details have been saved."
-        );
-        setMessageType("success");
-
-        onLoginSuccess?.();
-
-        // Close the modal after a short delay so the message can be read.
-        setTimeout(() => {
-          onClose?.();
-        }, 1000);
-      } catch {
-        setMessage("Unable to save your details in this browser.");
-        setMessageType("error");
-      }
-
-      return;
-    }
-
-    // Demo login only: this does not verify a password or authenticate
-    // against the backend.
-    try {
-      const savedUser = JSON.parse(
-        localStorage.getItem("tourmate-user") || "null"
-      );
-
-      if (!savedUser || savedUser.email !== email) {
-        setMessage(
-          "No matching locally registered account was found. Please sign up first."
-        );
-        setMessageType("error");
-        return;
-      }
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("tourmate-user", JSON.stringify(user));
+      localStorage.setItem("tourmate-profile", JSON.stringify(profile));
+      localStorage.setItem("tourmate-demo-auth", "true");
 
       setMessage("Login successful!");
       setMessageType("success");
 
-      localStorage.setItem("tourmate-demo-auth", "true");
       onLoginSuccess?.();
 
       setTimeout(() => {
         onClose?.();
-      }, 700);
-    } catch {
-      setMessage("Unable to read your saved account details.");
+      }, 500);
+    } catch (error) {
+      setMessage(
+        error.message ||
+          "Unable to connect to the server. Please try again."
+      );
       setMessageType("error");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -235,7 +267,7 @@ export default function AuthModal({
                 id="auth-fullName"
                 name="fullName"
                 type="text"
-                placeholder="Enter your full name"
+                placeholder="Enter first and last name"
                 value={formData.fullName}
                 onChange={handleChange}
                 autoComplete="name"
@@ -251,11 +283,10 @@ export default function AuthModal({
                 value={formData.mobile}
                 onChange={handleChange}
                 autoComplete="tel"
+                required
               />
 
-              <label htmlFor="auth-travellerType">
-                Traveller type
-              </label>
+              <label htmlFor="auth-travellerType">Traveller type</label>
               <select
                 id="auth-travellerType"
                 name="travellerType"
@@ -266,16 +297,21 @@ export default function AuthModal({
                 <option value="Foreign">Foreign traveller</option>
               </select>
 
-              <label htmlFor="auth-country">Country</label>
-              <input
-                id="auth-country"
-                name="country"
-                type="text"
-                placeholder="Enter your country"
-                value={formData.country}
-                onChange={handleChange}
-                autoComplete="country-name"
-              />
+              {formData.travellerType === "Foreign" && (
+                <>
+                  <label htmlFor="auth-country">Country of residence</label>
+                  <input
+                    id="auth-country"
+                    name="country"
+                    type="text"
+                    placeholder="Enter your country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    autoComplete="country-name"
+                    required
+                  />
+                </>
+              )}
             </>
           )}
 
@@ -332,9 +368,7 @@ export default function AuthModal({
             <input
               type="checkbox"
               checked={showPassword}
-              onChange={(event) =>
-                setShowPassword(event.target.checked)
-              }
+              onChange={(event) => setShowPassword(event.target.checked)}
             />
             Show password
           </label>
@@ -375,8 +409,16 @@ export default function AuthModal({
             </p>
           )}
 
-          <button type="submit" className="auth-submit-button">
-            {mode === "register" ? "Create account" : "Log in"}
+          <button
+            type="submit"
+            className="auth-submit-button"
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Please wait..."
+              : mode === "register"
+                ? "Create account"
+                : "Log in"}
           </button>
         </form>
 
@@ -395,7 +437,7 @@ export default function AuthModal({
         </p>
 
         <p className="auth-demo-note">
-          Demo mode: details are stored in this browser only.
+          Registration and login use your TourMateCeylon backend.
         </p>
       </div>
     </div>

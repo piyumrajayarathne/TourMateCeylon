@@ -11,6 +11,18 @@ export default function Navbar({
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef(null);
 
+  const user = (() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("tourmate-user") || "null"
+      );
+    } catch {
+      return null;
+    }
+  })();
+
+  const firstName = user?.firstName || "Traveler";
+
   useEffect(() => {
     function handleOutsideClick(event) {
       if (
@@ -31,7 +43,10 @@ export default function Navbar({
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
@@ -48,7 +63,10 @@ export default function Navbar({
 
   function handleLogout() {
     setAccountOpen(false);
-    if (onLogout) onLogout();
+
+    if (onLogout) {
+      onLogout();
+    }
   }
 
   return (
@@ -59,15 +77,22 @@ export default function Navbar({
         aria-label="TourMateCeylon home"
       >
         <span className="brand-mark">♧</span>
+
         <span>
-          <span className="brand-name">TourMateCeylon</span>
+          <span className="brand-name">
+            TourMateCeylon
+          </span>
+
           <span className="brand-tagline">
             AN ISLAND. YOUR STORY.
           </span>
         </span>
       </Link>
 
-      <nav className="primary-nav" aria-label="Main navigation">
+      <nav
+        className="primary-nav"
+        aria-label="Main navigation"
+      >
         {publicLinks.map((item) => (
           <NavLink
             key={item.path}
@@ -84,7 +109,10 @@ export default function Navbar({
 
       <div className="header-actions">
         {authenticated ? (
-          <div className="account-dropdown" ref={accountRef}>
+          <div
+            className="account-dropdown"
+            ref={accountRef}
+          >
             <button
               type="button"
               className="account-dropdown-trigger"
@@ -94,10 +122,15 @@ export default function Navbar({
                 setAccountOpen((previous) => !previous)
               }
             >
-              <span className="account-avatar" aria-hidden="true">
+              <span
+                className="account-avatar"
+                aria-hidden="true"
+              >
                 ♙
               </span>
-              <span>My Account</span>
+
+              <span>Hi, {firstName}!</span>
+
               <span
                 className={`account-chevron ${
                   accountOpen ? "open" : ""
@@ -109,7 +142,10 @@ export default function Navbar({
             </button>
 
             {accountOpen && (
-              <div className="account-dropdown-menu" role="menu">
+              <div
+                className="account-dropdown-menu"
+                role="menu"
+              >
                 <Link
                   to="/profile"
                   role="menuitem"
@@ -165,7 +201,10 @@ export default function Navbar({
           initialMode={authModal}
           onClose={() => setAuthModal(null)}
           onLoginSuccess={() => {
-            if (onLoginSuccess) onLoginSuccess();
+            if (onLoginSuccess) {
+              onLoginSuccess();
+            }
+
             setAuthModal(null);
           }}
         />
