@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import AuthModal from "./AuthModal.jsx";
 
 export default function Navbar({ authenticated = false }) {
+const [authModal, setAuthModal] = useState(null);
+  
   const publicLinks = [
     { label: "Home", path: "/" },
     { label: "Destinations", path: "/destinations" },
     { label: "Events", path: "/events" },
     { label: "Stays", path: "/stays" },
+    { label: "My Trips", path: "/my-trips" },
     { label: "My Bookings", path: "/bookings" },
     { label: "Budget", path: "/budget" },
   ];
@@ -63,9 +68,13 @@ export default function Navbar({ authenticated = false }) {
           </nav>
         ) : (
           <>
-            <Link className="login-link" to="/login">
-              Log in
-            </Link>
+            <button
+              type="button"
+              className="login-link auth-login-trigger"
+            onClick={() => setAuthModal("login")}
+            >
+            Log in
+            </button>
             <Link
               className="button button-primary"
               to="/my-trips"
@@ -75,6 +84,13 @@ export default function Navbar({ authenticated = false }) {
           </>
         )}
       </div>
+
+      {authModal && (
+        <AuthModal
+        initialMode={authModal}
+        onClose={() => setAuthModal(null)}
+        />
+      )}
     </header>
   );
 }
