@@ -1,4 +1,3 @@
-
 import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./Components/Navbar.jsx";
@@ -11,6 +10,9 @@ import Events from "./pages/Events.jsx";
 import EventDetails from "./pages/EventDetails.jsx";
 import Stays from "./pages/Stays.jsx";
 import StayDetails from "./pages/StayDetails.jsx";
+import MyTrips from "./pages/MyTrips.jsx";
+import MyBookings from "./pages/MyBookings.jsx";
+import Budget from "./pages/budgetDashboard.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -81,37 +83,13 @@ export default function App() {
         />
 
         {/* My trips */}
-        <Route
-          path="/my-trips"
-          element={
-            <PlaceholderPage
-              title="My trips"
-              description="Your planned journeys will appear here."
-            />
-          }
-        />
+        <Route path="/my-trips" element={<MyTrips />} />
 
         {/* Budget */}
-        <Route
-          path="/budget"
-          element={
-            <PlaceholderPage
-              title="Budget dashboard"
-              description="Keep track of your travel expenses."
-            />
-          }
-        />
+        <Route path="/budget" element={<Budget />} />
 
         {/* My bookings */}
-        <Route
-          path="/bookings"
-          element={
-            <PlaceholderPage
-              title="My bookings"
-              description="View and manage your travel bookings."
-            />
-          }
-        />
+        <Route path="/bookings" element={<MyBookings />} />
 
         {/* Profile */}
         <Route

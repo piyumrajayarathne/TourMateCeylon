@@ -6,22 +6,28 @@ export default function Navbar({ authenticated = false }) {
     { label: "Destinations", path: "/destinations" },
     { label: "Events", path: "/events" },
     { label: "Stays", path: "/stays" },
+    { label: "My Bookings", path: "/bookings" },
+    { label: "Budget", path: "/budget" },
   ];
 
   const accountLinks = [
     { label: "My trips", path: "/my-trips" },
-    { label: "Budget", path: "/budget" },
-    { label: "My bookings", path: "/bookings" },
     { label: "Profile", path: "/profile" },
   ];
 
   return (
     <header className="site-header">
-      <Link to="/" className="brand" aria-label="TourMateCeylon home">
+      <Link
+        to="/"
+        className="brand"
+        aria-label="TourMateCeylon home"
+      >
         <span className="brand-mark">♧</span>
         <span>
           <span className="brand-name">TourMateCeylon</span>
-          <span className="brand-tagline">AN ISLAND. YOUR STORY.</span>
+          <span className="brand-tagline">
+            AN ISLAND. YOUR STORY.
+          </span>
         </span>
       </Link>
 
@@ -44,7 +50,13 @@ export default function Navbar({ authenticated = false }) {
         {authenticated ? (
           <nav className="account-nav" aria-label="Your account">
             {accountLinks.map((item) => (
-              <NavLink key={item.path} to={item.path} className="nav-link">
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `nav-link${isActive ? " active" : ""}`
+                }
+              >
                 {item.label}
               </NavLink>
             ))}
@@ -54,7 +66,10 @@ export default function Navbar({ authenticated = false }) {
             <Link className="login-link" to="/login">
               Log in
             </Link>
-            <Link className="button button-primary" to="/my-trips">
+            <Link
+              className="button button-primary"
+              to="/my-trips"
+            >
               Start planning
             </Link>
           </>
