@@ -12,7 +12,7 @@ import Stays from "./pages/Stays.jsx";
 import StayDetails from "./pages/StayDetails.jsx";
 import MyTrips from "./pages/MyTrips.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
-import Budget from "./pages/budgetDashboard.jsx";
+import Budget from "./pages/BudgetDashboard.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
