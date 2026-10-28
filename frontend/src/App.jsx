@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./Components/Navbar.jsx";
@@ -13,6 +14,7 @@ import StayDetails from "./pages/StayDetails.jsx";
 import MyTrips from "./pages/MyTrips.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import Budget from "./pages/BudgetDashboard.jsx";
+import Profile from "./pages/Profile.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -25,20 +27,37 @@ function PlaceholderPage({ title, description }) {
 }
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(
+    () => localStorage.getItem("tourmate-demo-auth") === "true"
+  );
+
+  function handleDemoLogin() {
+    localStorage.setItem("tourmate-demo-auth", "true");
+    setAuthenticated(true);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("tourmate-demo-auth");
+    localStorage.removeItem("tourmate-profile");
+    localStorage.removeItem("tourmate-user");
+
+    setAuthenticated(false);
+  }
+
   return (
     <div className="app-shell">
-      <Navbar />
+      <Navbar
+        authenticated={authenticated}
+        onLogout={handleLogout}
+        onLoginSuccess={handleDemoLogin}
+      />
 
       <Routes>
         {/* Home */}
         <Route path="/" element={<Home />} />
 
         {/* Destinations */}
-        <Route
-          path="/destinations"
-          element={<Destinations />}
-        />
-
+        <Route path="/destinations" element={<Destinations />} />
         <Route
           path="/destinations/:slug"
           element={<DestinationDetails />}
@@ -46,19 +65,11 @@ export default function App() {
 
         {/* Events */}
         <Route path="/events" element={<Events />} />
-
-        <Route
-          path="/events/:id"
-          element={<EventDetails />}
-        />
+        <Route path="/events/:id" element={<EventDetails />} />
 
         {/* Stays */}
         <Route path="/stays" element={<Stays />} />
-
-        <Route
-          path="/stays/:id"
-          element={<StayDetails />}
-        />
+        <Route path="/stays/:id" element={<StayDetails />} />
 
         {/* Login */}
         <Route
@@ -82,24 +93,19 @@ export default function App() {
           }
         />
 
-        {/* My trips */}
+        {/* My Trips */}
         <Route path="/my-trips" element={<MyTrips />} />
 
         {/* Budget */}
         <Route path="/budget" element={<Budget />} />
 
-        {/* My bookings */}
+        {/* My Bookings */}
         <Route path="/bookings" element={<MyBookings />} />
 
         {/* Profile */}
         <Route
           path="/profile"
-          element={
-            <PlaceholderPage
-              title="My profile"
-              description="Manage your TourMateCeylon account."
-            />
-          }
+          element={<Profile onAccountDeleted={handleLogout} />}
         />
 
         {/* 404 - Keep this route last */}

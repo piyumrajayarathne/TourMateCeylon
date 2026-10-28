@@ -1,10 +1,41 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import AuthModal from "./AuthModal.jsx";
 
-export default function Navbar({ authenticated = false }) {
-const [authModal, setAuthModal] = useState(null);
-  
+export default function Navbar({
+  authenticated = false,
+  onLogout,
+  onLoginSuccess,
+}) {
+  const [authModal, setAuthModal] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (
+        accountRef.current &&
+        !accountRef.current.contains(event.target)
+      ) {
+        setAccountOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setAccountOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   const publicLinks = [
     { label: "Home", path: "/" },
     { label: "Destinations", path: "/destinations" },
@@ -15,10 +46,10 @@ const [authModal, setAuthModal] = useState(null);
     { label: "Budget", path: "/budget" },
   ];
 
-  const accountLinks = [
-    { label: "My trips", path: "/my-trips" },
-    { label: "Profile", path: "/profile" },
-  ];
+  function handleLogout() {
+    setAccountOpen(false);
+    if (onLogout) onLogout();
+  }
 
   return (
     <header className="site-header">
@@ -53,42 +84,90 @@ const [authModal, setAuthModal] = useState(null);
 
       <div className="header-actions">
         {authenticated ? (
-          <nav className="account-nav" aria-label="Your account">
-            {accountLinks.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `nav-link${isActive ? " active" : ""}`
-                }
+          <div className="account-dropdown" ref={accountRef}>
+            <button
+              type="button"
+              className="account-dropdown-trigger"
+              aria-expanded={accountOpen}
+              aria-haspopup="menu"
+              onClick={() =>
+                setAccountOpen((previous) => !previous)
+              }
+            >
+              <span className="account-avatar" aria-hidden="true">
+                ♙
+              </span>
+              <span>My Account</span>
+              <span
+                className={`account-chevron ${
+                  accountOpen ? "open" : ""
+                }`}
+                aria-hidden="true"
               >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+                ▾
+              </span>
+            </button>
+
+            {accountOpen && (
+              <div className="account-dropdown-menu" role="menu">
+                <Link
+                  to="/profile"
+                  role="menuitem"
+                  className="account-dropdown-item"
+                  onClick={() => setAccountOpen(false)}
+                >
+                  My Profile
+                </Link>
+
+                <Link
+                  to="/my-trips"
+                  role="menuitem"
+                  className="account-dropdown-item"
+                  onClick={() => setAccountOpen(false)}
+                >
+                  My Trips
+                </Link>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="account-dropdown-item account-logout"
+                  onClick={handleLogout}
+                >
+                  Log Out
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <button
               type="button"
               className="login-link auth-login-trigger"
-            onClick={() => setAuthModal("login")}
+              onClick={() => setAuthModal("login")}
             >
-            Log in
+              Log in
             </button>
-            <Link
+
+            <button
+              type="button"
               className="button button-primary"
-              to="/my-trips"
+              onClick={() => setAuthModal("register")}
             >
-              Start planning
-            </Link>
+              Sign up
+            </button>
           </>
         )}
       </div>
 
       {authModal && (
         <AuthModal
-        initialMode={authModal}
-        onClose={() => setAuthModal(null)}
+          initialMode={authModal}
+          onClose={() => setAuthModal(null)}
+          onLoginSuccess={() => {
+            if (onLoginSuccess) onLoginSuccess();
+            setAuthModal(null);
+          }}
         />
       )}
     </header>

@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 
-export default function AuthModal({ initialMode = "login", onClose }) {
+export default function AuthModal({
+  initialMode = "login",
+  onClose,
+  onLoginSuccess,
+}) {
   const [mode, setMode] = useState(initialMode);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("error");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     travellerType: "Local",
@@ -19,24 +23,30 @@ export default function AuthModal({ initialMode = "login", onClose }) {
   });
 
   useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === "Escape") onClose();
+    setMode(initialMode);
+    setMessage("");
+  }, [initialMode]);
+
+  useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        onClose?.();
+      }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  function updateField(event) {
+  function handleChange(event) {
     const { name, value, type, checked } = event.target;
 
-    setForm((previous) => ({
+    setFormData((previous) => ({
       ...previous,
       [name]: type === "checkbox" ? checked : value,
-      ...(name === "travellerType" && value === "Local"
-        ? { country: "Sri Lanka" }
-        : {}),
     }));
+
+    setMessage("");
   }
 
   function switchMode(nextMode) {
@@ -44,41 +54,132 @@ export default function AuthModal({ initialMode = "login", onClose }) {
     setMessage("");
   }
 
-  async function handleSubmit(event) {
+  function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
 
-    if (mode === "register") {
-      if (form.password !== form.confirmPassword) {
-        setMessage("Passwords do not match.");
-        return;
-      }
+    const email = formData.email.trim().toLowerCase();
 
-      if (!form.terms) {
-        setMessage("Please accept the Terms and Conditions.");
-        return;
-      }
-
-      setMessage(
-        "Registration details validated. Backend registration connection is the next step."
-      );
+    if (!email || !formData.password) {
+      setMessage("Please enter your email and password.");
+      setMessageType("error");
       return;
     }
 
-    setMessage(
-      "Login form is ready. Backend login connection is the next step."
-    );
+    if (mode === "register") {
+      const fullName = formData.fullName.trim();
+
+      if (!fullName) {
+        setMessage("Please enter your full name.");
+        setMessageType("error");
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setMessage("Please enter a valid email address.");
+        setMessageType("error");
+        return;
+      }
+
+      if (formData.password.length < 8) {
+        setMessage("Your password must contain at least 8 characters.");
+        setMessageType("error");
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        setMessage("Passwords do not match.");
+        setMessageType("error");
+        return;
+      }
+
+      if (!formData.terms) {
+        setMessage("Please accept the terms and conditions.");
+        setMessageType("error");
+        return;
+      }
+
+      const newUser = {
+        fullName,
+        email,
+        mobile: formData.mobile.trim(),
+        travellerType: formData.travellerType,
+        country: formData.country.trim() || "Sri Lanka",
+      };
+
+      try {
+        localStorage.setItem(
+          "tourmate-profile",
+          JSON.stringify(newUser)
+        );
+
+        localStorage.setItem(
+          "tourmate-user",
+          JSON.stringify(newUser)
+        );
+
+        localStorage.setItem("tourmate-demo-auth", "true");
+
+        setMessage(
+          "Registration successful! Your details have been saved."
+        );
+        setMessageType("success");
+
+        onLoginSuccess?.();
+
+        // Close the modal after a short delay so the message can be read.
+        setTimeout(() => {
+          onClose?.();
+        }, 1000);
+      } catch {
+        setMessage("Unable to save your details in this browser.");
+        setMessageType("error");
+      }
+
+      return;
+    }
+
+    // Demo login only: this does not verify a password or authenticate
+    // against the backend.
+    try {
+      const savedUser = JSON.parse(
+        localStorage.getItem("tourmate-user") || "null"
+      );
+
+      if (!savedUser || savedUser.email !== email) {
+        setMessage(
+          "No matching locally registered account was found. Please sign up first."
+        );
+        setMessageType("error");
+        return;
+      }
+
+      setMessage("Login successful!");
+      setMessageType("success");
+
+      localStorage.setItem("tourmate-demo-auth", "true");
+      onLoginSuccess?.();
+
+      setTimeout(() => {
+        onClose?.();
+      }, 700);
+    } catch {
+      setMessage("Unable to read your saved account details.");
+      setMessageType("error");
+    }
   }
 
   return (
     <div
       className="auth-modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose?.();
+        }
       }}
     >
-      <section
-        className={`auth-modal ${mode === "register" ? "auth-modal-register" : ""}`}
+      <div
+        className="auth-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-modal-title"
@@ -87,223 +188,216 @@ export default function AuthModal({ initialMode = "login", onClose }) {
           type="button"
           className="auth-modal-close"
           onClick={onClose}
-          aria-label="Close dialog"
+          aria-label="Close authentication dialog"
         >
-          ×
+          &times;
         </button>
 
-        <div className="auth-modal-brand">
-          <span className="auth-brand-mark">♧</span>
-          <span>TourMateCeylon</span>
+        <div className="auth-modal-header">
+          <span className="eyebrow">TOURMATECEYLON</span>
+
+          <h2 id="auth-modal-title">
+            {mode === "register"
+              ? "Create your account"
+              : "Welcome back"}
+          </h2>
+
+          <p>
+            {mode === "register"
+              ? "Start planning your Sri Lankan adventure."
+              : "Your next journey is waiting for you."}
+          </p>
         </div>
 
-        <p className="auth-modal-eyebrow">
-          {mode === "login" ? "WELCOME BACK" : "YOUR JOURNEY STARTS HERE"}
-        </p>
+        <div className="auth-modal-tabs">
+          <button
+            type="button"
+            className={mode === "login" ? "active" : ""}
+            onClick={() => switchMode("login")}
+          >
+            Log in
+          </button>
 
-        <h2 id="auth-modal-title">
-          {mode === "login" ? "Welcome back" : "Create your account"}
-        </h2>
+          <button
+            type="button"
+            className={mode === "register" ? "active" : ""}
+            onClick={() => switchMode("register")}
+          >
+            Sign up
+          </button>
+        </div>
 
-        <p className="auth-modal-subtitle">
-          {mode === "login"
-            ? "Sign in to continue planning your Sri Lankan adventure."
-            : "Join us and discover Sri Lanka your way."}
-        </p>
-
-        <form
-          className={`auth-modal-form ${mode === "register" ? "auth-register-form" : ""}`}
-          onSubmit={handleSubmit}
-        >
+        <form className="auth-form" onSubmit={handleSubmit}>
           {mode === "register" && (
             <>
-              <label>
-                Full name
-                <input
-                  name="fullName"
-                  value={form.fullName}
-                  onChange={updateField}
-                  autoComplete="name"
-                  placeholder="Enter your full name"
-                  minLength={2}
-                  maxLength={100}
-                  required
-                />
-              </label>
-
-              <label>
-                Traveller type
-                <select
-                  name="travellerType"
-                  value={form.travellerType}
-                  onChange={updateField}
-                  required
-                >
-                  <option value="Local">Local traveller</option>
-                  <option value="Foreign">Foreign traveller</option>
-                </select>
-              </label>
-            </>
-          )}
-
-          <label>
-            Email address
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={updateField}
-              autoComplete="email"
-              placeholder="you@example.com"
-              required
-            />
-          </label>
-
-          {mode === "register" && (
-            <>
-              {form.travellerType === "Foreign" && (
-                <label>
-                  Country of residence
-                  <input
-                    name="country"
-                    value={form.country}
-                    onChange={updateField}
-                    autoComplete="country-name"
-                    placeholder="Enter your country"
-                    required
-                  />
-                </label>
-              )}
-
-              <label>
-                Mobile number
-                <input
-                  name="mobile"
-                  type="tel"
-                  value={form.mobile}
-                  onChange={updateField}
-                  autoComplete="tel"
-                  placeholder={
-                    form.travellerType === "Local"
-                      ? "+94 7X XXX XXXX"
-                      : "Include your country code"
-                  }
-                  required
-                />
-              </label>
-            </>
-          )}
-
-          <label>
-            Password
-            <span className="auth-password-field">
+              <label htmlFor="auth-fullName">Full name</label>
               <input
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={updateField}
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                placeholder="At least 8 characters"
-                minLength={8}
+                id="auth-fullName"
+                name="fullName"
+                type="text"
+                placeholder="Enter your full name"
+                value={formData.fullName}
+                onChange={handleChange}
+                autoComplete="name"
                 required
               />
-              <button
-                type="button"
-                className="auth-password-toggle"
-                onClick={() => setShowPassword((value) => !value)}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </span>
-          </label>
 
-          {mode === "register" && (
-            <label>
-              Confirm password
-              <span className="auth-password-field">
-                <input
-                  name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={form.confirmPassword}
-                  onChange={updateField}
-                  autoComplete="new-password"
-                  placeholder="Re-enter your password"
-                  minLength={8}
-                  required
-                />
-                <button
-                  type="button"
-                  className="auth-password-toggle"
-                  onClick={() =>
-                    setShowConfirmPassword((value) => !value)
-                  }
-                >
-                  {showConfirmPassword ? "Hide" : "Show"}
-                </button>
-              </span>
-            </label>
+              <label htmlFor="auth-mobile">Mobile number</label>
+              <input
+                id="auth-mobile"
+                name="mobile"
+                type="tel"
+                placeholder="Enter your mobile number"
+                value={formData.mobile}
+                onChange={handleChange}
+                autoComplete="tel"
+              />
+
+              <label htmlFor="auth-travellerType">
+                Traveller type
+              </label>
+              <select
+                id="auth-travellerType"
+                name="travellerType"
+                value={formData.travellerType}
+                onChange={handleChange}
+              >
+                <option value="Local">Local traveller</option>
+                <option value="Foreign">Foreign traveller</option>
+              </select>
+
+              <label htmlFor="auth-country">Country</label>
+              <input
+                id="auth-country"
+                name="country"
+                type="text"
+                placeholder="Enter your country"
+                value={formData.country}
+                onChange={handleChange}
+                autoComplete="country-name"
+              />
+            </>
           )}
 
-          {mode === "login" && (
-            <label className="auth-remember">
+          <label htmlFor="auth-email">Email address</label>
+          <input
+            id="auth-email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            value={formData.email}
+            onChange={handleChange}
+            autoComplete="email"
+            required
+          />
+
+          <label htmlFor="auth-password">Password</label>
+          <input
+            id="auth-password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            placeholder={
+              mode === "register"
+                ? "At least 8 characters"
+                : "Enter your password"
+            }
+            value={formData.password}
+            onChange={handleChange}
+            autoComplete={
+              mode === "register" ? "new-password" : "current-password"
+            }
+            minLength={mode === "register" ? 8 : undefined}
+            required
+          />
+
+          {mode === "register" && (
+            <>
+              <label htmlFor="auth-confirmPassword">
+                Confirm password
+              </label>
               <input
-                name="remember"
+                id="auth-confirmPassword"
+                name="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder="Re-enter your password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+              />
+            </>
+          )}
+
+          <label className="auth-checkbox-row">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(event) =>
+                setShowPassword(event.target.checked)
+              }
+            />
+            Show password
+          </label>
+
+          {mode === "register" ? (
+            <label className="auth-checkbox-row">
+              <input
                 type="checkbox"
-                checked={form.remember}
-                onChange={updateField}
+                name="terms"
+                checked={formData.terms}
+                onChange={handleChange}
+                required
+              />
+              I agree to the terms and conditions.
+            </label>
+          ) : (
+            <label className="auth-checkbox-row">
+              <input
+                type="checkbox"
+                name="remember"
+                checked={formData.remember}
+                onChange={handleChange}
               />
               Remember me
             </label>
           )}
 
-          {mode === "register" && (
-            <label className="auth-remember auth-terms">
-              <input
-                name="terms"
-                type="checkbox"
-                checked={form.terms}
-                onChange={updateField}
-                required
-              />
-              <span>
-                I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms and Conditions</a> and{" "}
-                <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
-              </span>
-            </label>
-          )}
-
           {message && (
-            <p className="auth-form-message" role="status">
+            <p
+              className={`auth-message ${
+                messageType === "success"
+                  ? "auth-message-success"
+                  : "auth-message-error"
+              }`}
+              role="status"
+            >
               {message}
             </p>
           )}
 
           <button type="submit" className="auth-submit-button">
-            {mode === "login" ? "Log in" : "Create account"}
+            {mode === "register" ? "Create account" : "Log in"}
           </button>
         </form>
 
         <p className="auth-switch-text">
-          {mode === "login"
-            ? "New to TourMateCeylon?"
-            : "Already have an account?"}{" "}
+          {mode === "register"
+            ? "Already have an account?"
+            : "New to TourMateCeylon?"}{" "}
           <button
             type="button"
-            className="auth-switch-button"
             onClick={() =>
-              switchMode(mode === "login" ? "register" : "login")
+              switchMode(mode === "register" ? "login" : "register")
             }
           >
-            {mode === "login" ? "Create an account" : "Log in instead"}
+            {mode === "register" ? "Log in" : "Create an account"}
           </button>
         </p>
 
-        <p className="auth-modal-footer">
-          Discover Sri Lanka, your way.
+        <p className="auth-demo-note">
+          Demo mode: details are stored in this browser only.
         </p>
-      </section>
+      </div>
     </div>
   );
 }
