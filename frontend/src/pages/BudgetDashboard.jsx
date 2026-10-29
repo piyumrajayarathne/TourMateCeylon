@@ -1,31 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-const initialExpenses = [
-  {
-    id: 1,
-    title: "Hotel accommodation",
-    category: "Accommodation",
-    amount: 18000,
-    date: "2026-10-25",
-    notes: "Beach villa booking",
-  },
-  {
-    id: 2,
-    title: "Train tickets",
-    category: "Transport",
-    amount: 2500,
-    date: "2026-10-26",
-    notes: "Scenic train journey",
-  },
-  {
-    id: 3,
-    title: "Lunch",
-    category: "Food",
-    amount: 1800,
-    date: "2026-10-27",
-    notes: "",
-  },
-];
+const API_URL = "http://localhost:5000/api";
 
 const categories = [
   "Accommodation",
@@ -36,13 +11,6 @@ const categories = [
   "Other",
 ];
 
-const formatLKR = (amount) =>
-  new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
-    maximumFractionDigits: 2,
-  }).format(amount);
-
 const emptyForm = {
   title: "",
   category: "Food",
@@ -51,25 +19,150 @@ const emptyForm = {
   notes: "",
 };
 
+const formatLKR = (amount) =>
+  new Intl.NumberFormat("en-LK", {
+    style: "currency",
+    currency: "LKR",
+    maximumFractionDigits: 2,
+  }).format(Number(amount) || 0);
+
+function mapExpense(expense) {
+  return {
+    id: expense._id,
+    title: expense.title,
+    category: expense.category,
+    amount: Number(expense.amount),
+    date: String(expense.expenseDate).slice(0, 10),
+    notes: expense.notes || "",
+  };
+}
+
 export default function Budget() {
-  const [budget, setBudget] = useState(100000);
-  const [expenses, setExpenses] = useState(initialExpenses);
+  const [trips, setTrips] = useState([]);
+  const [selectedTripId, setSelectedTripId] = useState("");
+  const [expenses, setExpenses] = useState([]);
+  const [budget, setBudget] = useState(null);
+
+  const [loadingTrips, setLoadingTrips] = useState(true);
+  const [loadingExpenses, setLoadingExpenses] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
   const [dialog, setDialog] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
 
-  const totalSpent = expenses.reduce(
-    (total, expense) => total + Number(expense.amount),
-    0
+  const apiRequest = useCallback(async (path, options = {}) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      throw new Error("Please log in to manage your travel expenses.");
+    }
+
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Request failed (${response.status}).`
+      );
+    }
+
+    return data;
+  }, []);
+
+  // Load the user's trips.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTrips() {
+      setLoadingTrips(true);
+      setError("");
+
+      try {
+        const data = await apiRequest("/trips/my-trips");
+
+        if (cancelled) return;
+
+        const userTrips = data.trips || [];
+        setTrips(userTrips);
+
+        setSelectedTripId((current) => {
+          if (current && userTrips.some((trip) => trip._id === current)) {
+            return current;
+          }
+
+          return userTrips[0]?._id || "";
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Could not load your trips.");
+        }
+      } finally {
+        if (!cancelled) setLoadingTrips(false);
+      }
+    }
+
+    loadTrips();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiRequest]);
+
+  // Load expenses whenever the selected trip changes.
+  const loadExpenses = useCallback(async () => {
+    if (!selectedTripId) {
+      setExpenses([]);
+      setBudget(null);
+      return;
+    }
+
+    setLoadingExpenses(true);
+    setError("");
+
+    try {
+      const data = await apiRequest(
+        `/expenses/${selectedTripId}`
+      );
+
+      setExpenses((data.expenses || []).map(mapExpense));
+      setBudget(data.budget || null);
+    } catch (err) {
+      setExpenses([]);
+      setBudget(null);
+      setError(err.message || "Could not load expenses.");
+    } finally {
+      setLoadingExpenses(false);
+    }
+  }, [apiRequest, selectedTripId]);
+
+  useEffect(() => {
+    loadExpenses();
+  }, [loadExpenses]);
+
+  const totalSpent = Number(budget?.totalExpenses ?? 0);
+  const totalBudget = Number(budget?.totalBudget ?? 0);
+  const remaining = Number(
+    budget?.remainingBudget ?? totalBudget - totalSpent
   );
 
-  const remaining = budget - totalSpent;
-  const spentPercent = budget > 0
-    ? Math.min((totalSpent / budget) * 100, 100)
-    : 0;
+  const spentPercent =
+    totalBudget > 0
+      ? Math.min((totalSpent / totalBudget) * 100, 100)
+      : 0;
 
   const categoryTotals = useMemo(
     () =>
@@ -77,14 +170,15 @@ export default function Budget() {
         name: category,
         total: expenses
           .filter((expense) => expense.category === category)
-          .reduce((sum, expense) => sum + Number(expense.amount), 0),
+          .reduce((sum, expense) => sum + expense.amount, 0),
       })),
     [expenses]
   );
 
   const filteredExpenses = expenses
-    .filter((expense) =>
-      filter === "All" || expense.category === filter
+    .filter(
+      (expense) =>
+        filter === "All" || expense.category === filter
     )
     .filter((expense) =>
       `${expense.title} ${expense.category} ${expense.notes}`
@@ -95,7 +189,8 @@ export default function Budget() {
 
   function openAddDialog() {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm });
+    setError("");
     setDialog("expense");
   }
 
@@ -106,55 +201,104 @@ export default function Budget() {
       category: expense.category,
       amount: String(expense.amount),
       date: expense.date,
-      notes: expense.notes || "",
+      notes: expense.notes,
     });
+    setError("");
     setDialog("expense");
   }
 
-  function saveExpense(event) {
+  async function saveExpense(event) {
     event.preventDefault();
+    setError("");
 
-    const expenseData = {
-      ...form,
-      title: form.title.trim(),
-      amount: Number(form.amount),
+    const amount = Number(form.amount);
+    const title = form.title.trim();
+
+    if (!selectedTripId) {
+      setError("Please select a trip first.");
+      return;
+    }
+
+    if (!title || !Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a valid expense name and amount.");
+      return;
+    }
+
+    if (!form.date) {
+      setError("Please select an expense date.");
+      return;
+    }
+
+    const payload = {
+      title,
+      category: form.category,
+      amount,
+      expenseDate: form.date,
       notes: form.notes.trim(),
     };
 
-    if (!expenseData.title || expenseData.amount <= 0) return;
+    setSaving(true);
 
-    if (editingId !== null) {
-      setExpenses((current) =>
-        current.map((expense) =>
-          expense.id === editingId
-            ? { ...expenseData, id: editingId }
-            : expense
-        )
-      );
-    } else {
-      setExpenses((current) => [
-        ...current,
-        { ...expenseData, id: Date.now() },
-      ]);
+    try {
+      if (editingId) {
+        await apiRequest(
+          `/expenses/${selectedTripId}/${editingId}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          }
+        );
+      } else {
+        await apiRequest(`/expenses/${selectedTripId}`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      setDialog(null);
+      setEditingId(null);
+      setForm({ ...emptyForm });
+
+      await loadExpenses();
+    } catch (err) {
+      setError(err.message || "Could not save the expense.");
+    } finally {
+      setSaving(false);
     }
-
-    setDialog(null);
-    setEditingId(null);
-    setForm(emptyForm);
   }
 
-  function confirmDelete() {
-    setExpenses((current) =>
-      current.filter((expense) => expense.id !== deletingId)
-    );
-    setDeletingId(null);
+  async function confirmDelete() {
+    if (!selectedTripId || !deletingId) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await apiRequest(
+        `/expenses/${selectedTripId}/${deletingId}`,
+        { method: "DELETE" }
+      );
+
+      setDeletingId(null);
+      await loadExpenses();
+    } catch (err) {
+      setError(err.message || "Could not delete the expense.");
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const selectedTrip = trips.find(
+    (trip) => trip._id === selectedTripId
+  );
 
   return (
     <main className="budget-page">
       <section className="budget-hero">
         <div>
-          <span className="budget-eyebrow">YOUR TRAVEL FINANCES</span>
+          <span className="budget-eyebrow">
+            YOUR TRAVEL FINANCES
+          </span>
           <h1>Travel Budget</h1>
           <p>
             Keep your Sri Lankan adventures within budget,
@@ -162,189 +306,272 @@ export default function Budget() {
           </p>
         </div>
 
-        <button className="budget-primary-button" onClick={openAddDialog}>
+        <button
+          type="button"
+          className="budget-primary-button"
+          onClick={openAddDialog}
+          disabled={!selectedTripId || loadingExpenses}
+        >
           + Add Expense
         </button>
       </section>
 
-      <section className="budget-overview">
-        <article className="budget-stat-card">
-          <span>Total Budget</span>
-          <h2>{formatLKR(budget)}</h2>
+      {error && (
+        <div className="budget-empty-state" role="alert">
+          <p>{error}</p>
           <button
-            className="budget-text-button"
-            onClick={() => setDialog("budget")}
+            type="button"
+            className="budget-secondary-button"
+            onClick={() => setError("")}
           >
-            Edit budget
+            Dismiss
           </button>
-        </article>
-
-        <article className="budget-stat-card">
-          <span>Total Spent</span>
-          <h2>{formatLKR(totalSpent)}</h2>
-          <p>Across {expenses.length} expenses</p>
-        </article>
-
-        <article className="budget-stat-card">
-          <span>Remaining Balance</span>
-          <h2 className={remaining < 0 ? "budget-over" : ""}>
-            {formatLKR(remaining)}
-          </h2>
-          <p>
-            {remaining < 0
-              ? "You have exceeded your budget."
-              : "Available for your trip"}
-          </p>
-        </article>
-      </section>
-
-      <section className="budget-panel">
-        <div className="budget-panel-heading">
-          <div>
-            <h2>Budget Progress</h2>
-            <p>Track your spending against your travel budget.</p>
-          </div>
-          <strong>{spentPercent.toFixed(1)}%</strong>
         </div>
+      )}
 
-        <div className="budget-progress-track">
-          <div
-            className={`budget-progress-fill ${
-              spentPercent >= 100 ? "budget-progress-danger" : ""
-            }`}
-            style={{ width: `${spentPercent}%` }}
-          />
-        </div>
+      {loadingTrips ? (
+        <section className="budget-panel">
+          <p>Loading your trips...</p>
+        </section>
+      ) : trips.length === 0 ? (
+        <section className="budget-panel">
+          <h2>No trips available</h2>
+          <p>Create a trip in My Trips before recording expenses.</p>
+        </section>
+      ) : (
+        <>
+          <section className="budget-panel">
+            <div className="budget-panel-heading">
+              <div>
+                <h2>Select your trip</h2>
+                <p>Expenses and budget totals are trip-specific.</p>
+              </div>
+            </div>
 
-        <div className="budget-progress-labels">
-          <span>{formatLKR(totalSpent)} spent</span>
-          <span>{formatLKR(budget)} budget</span>
-        </div>
-      </section>
+            <label>
+              Your trip
+              <select
+                value={selectedTripId}
+                onChange={(event) => {
+                  setSelectedTripId(event.target.value);
+                  setFilter("All");
+                  setSearch("");
+                }}
+                disabled={saving}
+              >
+                {trips.map((trip) => (
+                  <option key={trip._id} value={trip._id}>
+                    {trip.tripName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
 
-      <section className="budget-panel">
-        <div className="budget-panel-heading">
-          <div>
-            <h2>Spending by Category</h2>
-            <p>See where your travel money goes.</p>
-          </div>
-        </div>
+          {loadingExpenses ? (
+            <section className="budget-panel">
+              <p>Loading expenses...</p>
+            </section>
+          ) : (
+            <>
+              <section className="budget-overview">
+                <article className="budget-stat-card">
+                  <span>Total Budget</span>
+                  <h2>{formatLKR(totalBudget)}</h2>
+                  <p>{selectedTrip?.tripName}</p>
+                </article>
 
-        <div className="budget-category-grid">
-          {categoryTotals.map((category) => {
-            const percentage = totalSpent > 0
-              ? (category.total / totalSpent) * 100
-              : 0;
+                <article className="budget-stat-card">
+                  <span>Total Spent</span>
+                  <h2>{formatLKR(totalSpent)}</h2>
+                  <p>Across {expenses.length} expenses</p>
+                </article>
 
-            return (
-              <article className="budget-category-card" key={category.name}>
-                <span>{category.name}</span>
-                <h3>{formatLKR(category.total)}</h3>
-                <div className="budget-category-track">
+                <article className="budget-stat-card">
+                  <span>Remaining Balance</span>
+                  <h2 className={remaining < 0 ? "budget-over" : ""}>
+                    {formatLKR(remaining)}
+                  </h2>
+                  <p>
+                    {remaining < 0
+                      ? "You have exceeded your budget."
+                      : "Available for your trip"}
+                  </p>
+                </article>
+              </section>
+
+              <section className="budget-panel">
+                <div className="budget-panel-heading">
+                  <div>
+                    <h2>Budget Progress</h2>
+                    <p>Track your spending against your travel budget.</p>
+                  </div>
+                  <strong>{spentPercent.toFixed(1)}%</strong>
+                </div>
+
+                <div className="budget-progress-track">
                   <div
-                    className="budget-category-fill"
-                    style={{ width: `${percentage}%` }}
+                    className={`budget-progress-fill ${
+                      spentPercent >= 100
+                        ? "budget-progress-danger"
+                        : ""
+                    }`}
+                    style={{ width: `${spentPercent}%` }}
                   />
                 </div>
-                <small>{percentage.toFixed(1)}% of spending</small>
-              </article>
-            );
-          })}
-        </div>
-      </section>
 
-      <section className="budget-panel">
-        <div className="budget-panel-heading budget-expenses-heading">
-          <div>
-            <h2>Recent Expenses</h2>
-            <p>Manage the costs recorded for your trip.</p>
-          </div>
+                <div className="budget-progress-labels">
+                  <span>{formatLKR(totalSpent)} spent</span>
+                  <span>{formatLKR(totalBudget)} budget</span>
+                </div>
+              </section>
 
-          <button className="budget-primary-button" onClick={openAddDialog}>
-            + Add Expense
-          </button>
-        </div>
-
-        <div className="budget-filters">
-          <input
-            type="search"
-            placeholder="Search expenses..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search expenses"
-          />
-
-          <select
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            aria-label="Filter by category"
-          >
-            <option value="All">All categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {filteredExpenses.length === 0 ? (
-          <div className="budget-empty-state">
-            <h3>No expenses found</h3>
-            <p>Add an expense or change your search filters.</p>
-          </div>
-        ) : (
-          <div className="budget-expense-list">
-            {filteredExpenses.map((expense) => (
-              <article className="budget-expense-row" key={expense.id}>
-                <div className="budget-expense-icon">
-                  {expense.category === "Accommodation" ? "⌂" :
-                   expense.category === "Transport" ? "↗" :
-                   expense.category === "Food" ? "♧" :
-                   expense.category === "Activities" ? "✦" :
-                   expense.category === "Shopping" ? "◇" : "•"}
+              <section className="budget-panel">
+                <div className="budget-panel-heading">
+                  <div>
+                    <h2>Spending by Category</h2>
+                    <p>See where your travel money goes.</p>
+                  </div>
                 </div>
 
-                <div className="budget-expense-info">
-                  <h3>{expense.title}</h3>
-                  <p>
-                    {expense.category} · {expense.date}
-                  </p>
-                  {expense.notes && <small>{expense.notes}</small>}
+                <div className="budget-category-grid">
+                  {categoryTotals.map((category) => {
+                    const percentage =
+                      totalSpent > 0
+                        ? (category.total / totalSpent) * 100
+                        : 0;
+
+                    return (
+                      <article
+                        className="budget-category-card"
+                        key={category.name}
+                      >
+                        <span>{category.name}</span>
+                        <h3>{formatLKR(category.total)}</h3>
+                        <div className="budget-category-track">
+                          <div
+                            className="budget-category-fill"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <small>{percentage.toFixed(1)}% of spending</small>
+                      </article>
+                    );
+                  })}
                 </div>
+              </section>
 
-                <strong className="budget-expense-amount">
-                  {formatLKR(expense.amount)}
-                </strong>
+              <section className="budget-panel">
+                <div className="budget-panel-heading budget-expenses-heading">
+                  <div>
+                    <h2>Recent Expenses</h2>
+                    <p>Manage the costs recorded for your trip.</p>
+                  </div>
 
-                <div className="budget-expense-actions">
                   <button
-                    onClick={() => openEditDialog(expense)}
-                    aria-label={`Edit ${expense.title}`}
-                    title="Edit expense"
+                    type="button"
+                    className="budget-primary-button"
+                    onClick={openAddDialog}
                   >
-                    Edit
-                  </button>
-                  <button
-                    className="budget-delete-button"
-                    onClick={() => setDeletingId(expense.id)}
-                    aria-label={`Delete ${expense.title}`}
-                    title="Delete expense"
-                  >
-                    Delete
+                    + Add Expense
                   </button>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+
+                <div className="budget-filters">
+                  <input
+                    type="search"
+                    placeholder="Search expenses..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    aria-label="Search expenses"
+                  />
+
+                  <select
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                    aria-label="Filter by category"
+                  >
+                    <option value="All">All categories</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {filteredExpenses.length === 0 ? (
+                  <div className="budget-empty-state">
+                    <h3>No expenses found</h3>
+                    <p>Add an expense or change your search filters.</p>
+                  </div>
+                ) : (
+                  <div className="budget-expense-list">
+                    {filteredExpenses.map((expense) => (
+                      <article
+                        className="budget-expense-row"
+                        key={expense.id}
+                      >
+                        <div className="budget-expense-icon">
+                          {expense.category === "Accommodation"
+                            ? "⌂"
+                            : expense.category === "Transport"
+                            ? "↗"
+                            : expense.category === "Food"
+                            ? "♧"
+                            : expense.category === "Activities"
+                            ? "✦"
+                            : expense.category === "Shopping"
+                            ? "◇"
+                            : "•"}
+                        </div>
+
+                        <div className="budget-expense-info">
+                          <h3>{expense.title}</h3>
+                          <p>
+                            {expense.category} · {expense.date}
+                          </p>
+                          {expense.notes && <small>{expense.notes}</small>}
+                        </div>
+
+                        <strong className="budget-expense-amount">
+                          {formatLKR(expense.amount)}
+                        </strong>
+
+                        <div className="budget-expense-actions">
+                          <button
+                            type="button"
+                            onClick={() => openEditDialog(expense)}
+                            disabled={saving}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="budget-delete-button"
+                            onClick={() => setDeletingId(expense.id)}
+                            disabled={saving}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </>
+      )}
 
       {dialog === "expense" && (
         <div
           className="budget-modal-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setDialog(null);
+            if (event.target === event.currentTarget && !saving) {
+              setDialog(null);
+            }
           }}
         >
           <section
@@ -357,13 +584,15 @@ export default function Budget() {
               <div>
                 <span className="budget-eyebrow">TRIP EXPENSE</span>
                 <h2 id="expense-modal-title">
-                  {editingId !== null ? "Edit Expense" : "Add Expense"}
+                  {editingId ? "Edit Expense" : "Add Expense"}
                 </h2>
               </div>
               <button
+                type="button"
                 className="budget-modal-close"
-                onClick={() => setDialog(null)}
+                onClick={() => !saving && setDialog(null)}
                 aria-label="Close dialog"
+                disabled={saving}
               >
                 ×
               </button>
@@ -446,69 +675,20 @@ export default function Budget() {
                   type="button"
                   className="budget-secondary-button"
                   onClick={() => setDialog(null)}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="budget-primary-button">
-                  {editingId !== null ? "Save Changes" : "Save Expense"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
-
-      {dialog === "budget" && (
-        <div className="budget-modal-backdrop">
-          <section
-            className="budget-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="budget-modal-title"
-          >
-            <div className="budget-modal-heading">
-              <div>
-                <span className="budget-eyebrow">TRIP SETTINGS</span>
-                <h2 id="budget-modal-title">Edit Travel Budget</h2>
-              </div>
-              <button
-                className="budget-modal-close"
-                onClick={() => setDialog(null)}
-                aria-label="Close dialog"
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                setBudget(Number(event.currentTarget.elements.budgetAmount.value));
-                setDialog(null);
-              }}
-            >
-              <label>
-                Total budget (LKR)
-                <input
-                  name="budgetAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  defaultValue={budget}
-                />
-              </label>
-
-              <div className="budget-modal-actions">
                 <button
-                  type="button"
-                  className="budget-secondary-button"
-                  onClick={() => setDialog(null)}
+                  type="submit"
+                  className="budget-primary-button"
+                  disabled={saving}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="budget-primary-button">
-                  Save Budget
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                    ? "Save Changes"
+                    : "Save Expense"}
                 </button>
               </div>
             </form>
@@ -516,7 +696,7 @@ export default function Budget() {
         </div>
       )}
 
-      {deletingId !== null && (
+      {deletingId && (
         <div className="budget-modal-backdrop">
           <section
             className="budget-modal budget-confirm-modal"
@@ -525,21 +705,24 @@ export default function Budget() {
             aria-labelledby="delete-modal-title"
           >
             <h2 id="delete-modal-title">Delete this expense?</h2>
-            <p>
-              This expense will be removed from your current budget summary.
-            </p>
+            <p>This expense will be removed from your trip budget.</p>
+
             <div className="budget-modal-actions">
               <button
+                type="button"
                 className="budget-secondary-button"
                 onClick={() => setDeletingId(null)}
+                disabled={saving}
               >
                 Cancel
               </button>
               <button
+                type="button"
                 className="budget-danger-button"
                 onClick={confirmDelete}
+                disabled={saving}
               >
-                Delete Expense
+                {saving ? "Deleting..." : "Delete Expense"}
               </button>
             </div>
           </section>
