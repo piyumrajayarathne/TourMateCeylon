@@ -1,88 +1,120 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-const destinations = [
-  {
-    name: "Galle Fort",
-    category: "Heritage",
-    region: "Southern Province",
-    description:
-      "Explore historic streets, colonial architecture, boutique shops, and beautiful ocean views.",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/c/cf/Galle_Fort%2C_Sri_Lanka.JPG",
-  },
-  {
-    name: "Ella",
-    category: "Nature",
-    region: "Uva Province",
-    description:
-      "Discover misty mountains, tea plantations, scenic hikes, and the famous Nine Arch Bridge.",
-    image:
-      "https://www.tracedirecte.com/media/original_images/pont-9-arcs-ella-sri-lanka.jpg.1920x0_q85.jpg",
-  },
-  {
-    name: "Mirissa",
-    category: "Beach",
-    region: "Southern Province",
-    description:
-      "Enjoy palm-lined beaches, golden sunsets, ocean adventures, and a relaxed coastal atmosphere.",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/6/6d/Mirissa_Sri_lanka.jpg",
-  },
-  {
-    name: "Sigiriya",
-    category: "Heritage",
-    region: "Central Province",
-    description:
-      "Visit the iconic rock fortress and discover the history and scenery surrounding it.",
-    image:
-      "https://commons.wikimedia.org/wiki/Special:FilePath/Sigiriya%2CSri_Lanka.jpg",
-  },
-  {
-    name: "Kandy",
-    category: "Culture",
-    region: "Central Province",
-    description:
-      "Experience a cultural city known for its lake, historic temples, and surrounding hills.",
-    image: "/images/kandy.jpg",
-  },
-  {
-    name: "Nuwara Eliya",
-    category: "Nature",
-    region: "Central Province",
-    description:
-      "Explore cool highlands, green tea estates, gardens, and scenic mountain landscapes.",
-    image:
-      "https://commons.wikimedia.org/wiki/Special:FilePath/Nuwara-Eliya.jpg",  
-  },
-];
+const API_URL = "http://localhost:5000/api/destinations";
 
 const categories = ["All", "Beach", "Nature", "Heritage", "Culture"];
 
+
+function getCategory(destination) {
+  const value = String(destination.category || "").toLowerCase();
+
+  if (value === "beach") return "Beach";
+  if (value === "mountain" || value === "wildlife") return "Nature";
+  if (value === "historical") return "Heritage";
+  if (value === "religious") return "Culture";
+  if (value === "adventure") return "Adventure";
+
+  return destination.category || "Other";
+}
+
+function getImage(destination) {
+  if (Array.isArray(destination.images)) {
+    return destination.images[0] || "";
+  }
+
+  if (typeof destination.images === "string") {
+    return destination.images;
+  }
+
+  return destination.image || "";
+}
+
+function getSlug(destination) {
+  return (
+    destination.slug ||
+    destination.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+  );
+}
+
 export default function Destinations() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialSearch = searchParams.get("search") || "";
+  const [destinations, setDestinations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [search, setSearch] = useState(initialSearch);
+  const [search, setSearch] = useState(
+    searchParams.get("search") || ""
+  );
   const [activeCategory, setActiveCategory] = useState("All");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchDestinations() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(API_URL, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Could not load destinations (${response.status}).`);
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data.destinations)) {
+          throw new Error("The destination API returned an unexpected response.");
+        }
+
+        setDestinations(data.destinations);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Fetch destinations error:", err);
+          setError(err.message || "Failed to load destinations.");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchDestinations();
+
+    return () => controller.abort();
+  }, []);
 
   const filteredDestinations = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return destinations.filter((destination) => {
+      const category = getCategory(destination);
+      const region = destination.province || destination.region || "";
+      const name = destination.name || "";
+      const description = destination.description || "";
+
       const matchesSearch =
         !query ||
-        destination.name.toLowerCase().includes(query) ||
-        destination.category.toLowerCase().includes(query) ||
-        destination.region.toLowerCase().includes(query);
+        name.toLowerCase().includes(query) ||
+        category.toLowerCase().includes(query) ||
+        region.toLowerCase().includes(query) ||
+        String(destination.district || "").toLowerCase().includes(query) ||
+        description.toLowerCase().includes(query);
 
       const matchesCategory =
-        activeCategory === "All" ||
-        destination.category === activeCategory;
+        activeCategory === "All" || category === activeCategory;
 
       return matchesSearch && matchesCategory;
     });
-  }, [search, activeCategory]);
+  }, [destinations, search, activeCategory]);
 
   function handleSearch(event) {
     event.preventDefault();
@@ -144,7 +176,10 @@ export default function Destinations() {
           </span>
         </div>
 
-        <div className="destination-filters" aria-label="Filter by category">
+        <div
+          className="destination-filters"
+          aria-label="Filter by category"
+        >
           {categories.map((category) => (
             <button
               key={category}
@@ -162,53 +197,77 @@ export default function Destinations() {
           ))}
         </div>
 
-        {filteredDestinations.length > 0 ? (
+        {loading ? (
+          <div className="destinations-empty">
+            <h3>Loading destinations...</h3>
+            <p>Please wait while we retrieve destinations.</p>
+          </div>
+        ) : error ? (
+          <div className="destinations-empty">
+            <h3>Unable to load destinations</h3>
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+            >
+              Try again
+            </button>
+          </div>
+        ) : filteredDestinations.length > 0 ? (
           <div className="destinations-grid">
-            {filteredDestinations.map((destination, index) => (
-              <article
-                className="destination-result-card"
-                key={destination.name}
-              >
-                <Link
-                  className="destination-result-image"
-                  to={`/destinations/${encodeURIComponent(
-                    destination.name.toLowerCase().replace(/\s+/g, "-")
-                  )}`}
-                  aria-label={`View ${destination.name}`}
+            {filteredDestinations.map((destination, index) => {
+              const category = getCategory(destination);
+              const region =
+                destination.province || destination.region || "Sri Lanka";
+              const image = getImage(destination);
+              const slug = getSlug(destination);
+
+              return (
+                <article
+                  className="destination-result-card"
+                  key={destination._id || slug}
                 >
-                  <img
-                    src={destination.image}
-                    alt={destination.name}
-                    loading="lazy"
-                    onError={(event) => {
-                      event.currentTarget.style.visibility = "hidden";
-                    }}
-                  />
-                  <span className="destination-result-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                </Link>
-
-                <div className="destination-result-body">
-                  <div className="destination-result-meta">
-                    <span>{destination.category}</span>
-                    <span>{destination.region}</span>
-                  </div>
-
-                  <h3>{destination.name}</h3>
-                  <p>{destination.description}</p>
-
                   <Link
-                    className="destination-result-link"
-                    to={`/destinations/${encodeURIComponent(
-                      destination.name.toLowerCase().replace(/\s+/g, "-")
-                    )}`}
+                    className="destination-result-image"
+                    to={`/destinations/${encodeURIComponent(slug)}`}
+                    aria-label={`View ${destination.name}`}
                   >
-                    Explore destination <span aria-hidden="true">→</span>
+                    {image ? (
+                      <img
+                        src={image}
+                        alt={destination.name}
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.style.visibility = "hidden";
+                        }}
+                      />
+                    ) : null}
+
+                    <span className="destination-result-number">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
                   </Link>
-                </div>
-              </article>
-            ))}
+
+                  <div className="destination-result-body">
+                    <div className="destination-result-meta">
+                      <span>{category}</span>
+                      <span>{region}</span>
+                    </div>
+
+                    <h3>{destination.name}</h3>
+                    <p>{destination.description}</p>
+
+                    <Link
+                      className="destination-result-link"
+                      to={`/destinations/${encodeURIComponent(slug)}`}
+                    >
+                      Explore destination{" "}
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="destinations-empty">
