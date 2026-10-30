@@ -4,7 +4,7 @@
 
 **Discover Sri Lanka. Plan Your Journey. Explore More.**
 
-TourMateCeylon is a web based travel and tourism management platform developed using the MERN stack. It provides a centralized platform for local and international travellers to explore destinations, discover events, find accommodation, manage bookings, and plan travel budgets.
+TourMateCeylon is a web-based travel and tourism management platform developed using the MERN stack. It provides a centralized platform for local and international travellers to explore destinations, discover events, find accommodation, manage bookings, and plan travel budgets.
 
 The platform also provides dedicated hotel management facilities, allowing hotel owners to manage their properties, rooms, prices, and availability.
 
@@ -130,7 +130,7 @@ TourMateCeylon/
 │   ├── middleware/
 │   ├── models/
 │   ├── routes/
-│   ├── .env
+│   ├── .env.example
 │   ├── .gitignore
 │   ├── package.json
 │   └── server.js
@@ -149,28 +149,36 @@ TourMateCeylon/
 │
 ├── README.md
 └── .gitignore
+```
+
+*Note: The structure above highlights the main project directories. Additional files and subdirectories may exist.*
 
 ---
 
 ## ⚙️ Installation and Setup
 
+Follow these steps to run TourMateCeylon on your local machine.
+
 ### Prerequisites
 
-Make sure the following are installed:
+Make sure the following software is installed:
 
-- Node.js
+- [Node.js](https://nodejs.org/)
 - npm
-- MongoDB
-- Git
+- [MongoDB Community Server](https://www.mongodb.com/try/download/community)
+- [Git](https://git-scm.com/)
+- Visual Studio Code (recommended)
 
 ### 1. Clone the Repository
 
+Open a terminal and execute:
+
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/piyumrajayarathne/TourMateCeylon.git
 cd TourMateCeylon
 ```
 
-### 2. Backend Setup
+### 2. Install Backend Dependencies
 
 Navigate to the backend directory:
 
@@ -179,56 +187,80 @@ cd backend
 npm install
 ```
 
-Create a `.env` file in the backend directory and configure the required environment variables.
+### 3. Configure Environment Variables
 
-### 3. Frontend Setup
+Create a `.env` file inside the `backend` directory.
 
-Open another terminal and navigate to the frontend directory:
+Configure the required environment variables.
+
+Example:
+
+```env
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+```
+
+Replace the example values with your actual local configuration.
+
+Use the exact environment variable names expected by the backend source code.
+
+**Important:** Never upload your actual `.env` file, database credentials, JWT secrets, or private passwords to GitHub.
+
+### 4. Install Frontend Dependencies
+
+Open another terminal in the project root directory and execute:
 
 ```bash
 cd frontend
 npm install
 ```
 
-### 4. Run the Application
+### 5. Start MongoDB
 
-Start the MongoDB server first.
+Start the local MongoDB Community Server and make sure it is running before starting the backend.
 
-**Start the backend:**
+### 6. Start the Backend Server
 
-From the backend directory:
+Open a terminal in the backend directory:
 
 ```bash
 node server.js
 ```
 
-Backend URL:
+The backend server runs at:
 
 ```text
 http://localhost:5000
 ```
 
-**Start the frontend:**
+### 7. Start the Frontend Application
 
-From the frontend directory:
+Open another terminal in the frontend directory:
 
 ```bash
 npm run dev
 ```
 
-Frontend URL:
+Vite starts the frontend development server.
+
+The frontend is normally available at:
 
 ```text
 http://localhost:5173
 ```
 
-Open the frontend URL in your browser to access TourMateCeylon.
+### 8. Access the Application
+
+Open the frontend URL in your web browser to access TourMateCeylon.
+
+Make sure MongoDB, the backend server, and the frontend development server are running.
 
 ---
 
 ## 🔐 Environment Configuration
 
-The backend requires environment variables for database connectivity and authentication.
+The backend uses environment variables for database connectivity, server configuration, and authentication.
 
 Example `.env` configuration:
 
@@ -238,33 +270,32 @@ MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
 ```
 
-Use the exact variable names expected by your backend code.
+Create your own `.env` file inside the backend directory.
 
-**Important:** Never upload your `.env` file, database credentials, JWT secrets, or private passwords to GitHub.
+An `.env.example` file can be included in the repository with placeholder values to help other developers configure the application.
+
+**Security reminder:** Never commit actual database credentials, JWT secrets, or other sensitive information to GitHub.
 
 ---
 
 ## 🔑 Demo Accounts
 
-The application supports two user roles for demonstration and testing.
+TourMateCeylon supports two main user roles for demonstration and testing.
 
-### Traveller Account
+### Available User Roles
 
-| Field    | Details            |
-| -------- | ------------------ |
-| Role     | Traveller          |
-| Email    | piyumra\@gmail.com |
-| Password | 123456abc          |
+| Role        | Access                                                                                        |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| Traveller   | Destination discovery, event discovery, accommodation browsing, bookings, and budget planning |
+| Hotel Owner | Hotel management, room management, price management, and availability management              |
 
-### Hotel Owner Account
+Traveller -       username-  piyumra\@gmail.com
 
-| Field    | Details                            |
-| -------- | ---------------------------------- |
-| Role     | Hotel Owner                        |
-| Email    | **hotelmanager.test\@example.com** |
-| Password | 123456abc                          |
+&#x20;                      password- 123456abc
 
-Replace these placeholders with dedicated demonstration credentials only if you intend to make them public.
+Hotel Owner- username- hotelmanager.test\@example.com
+
+&#x20;                      password- 123456abc
 
 ---
 
@@ -272,21 +303,46 @@ Replace these placeholders with dedicated demonstration credentials only if you 
 
 TourMateCeylon uses MongoDB as its database and Mongoose for data modelling and database operations.
 
-The database manages application information such as:
+The application uses the following main data models:
 
-- User accounts
-- Hotels
-- Rooms
-- Bookings
-- Tourism events
-- Budget and expense records
+- **User** – Stores user account information, roles, and profile details.
+- **Hotel** – Stores hotel information and owner references.
+- **Room** – Stores room details, prices, capacity, and availability.
+- **Booking** – Stores booking information, dates, amounts, and booking/payment statuses.
+- **Destination** – Stores Sri Lankan destination information and details.
+- **Event** – Stores tourism event information and details.
+- **Trip** – Stores trip plans, budgets, destinations, and booking references.
+- **Expense** – Stores travel expenses associated with trips and travellers.
+
+MongoDB ObjectId references are used to represent relationships between related documents.
 
 ---
 
 ## 🔒 Security
 
-- Passwords are hashed before storage.
-- JWT is used for authentication.
+TourMateCeylon incorporates the following security mechanisms:
+
+- Passwords are hashed before storage using bcryptjs.
+- JWT is used for user authentication.
 - Protected routes restrict unauthorized access.
 - Role-based access control separates traveller and hotel owner functionality.
 - Sensitive configuration is maintained through environment variables.
+- Backend validation helps protect data integrity.
+
+
+
+---
+
+## 👩‍💻 Developer
+
+**Project:** TourMateCeylon
+**Module:** EC4307 – Web Application Development
+**University:** University of Ruhuna
+**Technology Stack:** MERN (MongoDB, Express.js, React.js, Node.js)
+
+EG/2023/5656
+
+**GitHub Repository:**
+[https://github.com/piyumrajayarathne/TourMateCeylon](https://github.com/piyumrajayarathne/TourMateCeylon)
+
+##
