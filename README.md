@@ -149,34 +149,6 @@ TourMateCeylon/
 │
 ├── README.md
 └── .gitignore
-```
-
----
-
-## 🖼️ Screenshots
-
-Add screenshots of the actual application in a `screenshots` folder in the repository.
-
-Suggested screenshots:
-
-| Screenshot      | Description                   |
-| --------------- | ----------------------------- |
-| Home Page       | Main landing page             |
-| Login Page      | User authentication           |
-| Destinations    | Destination discovery         |
-| Events          | Tourism event listings        |
-| Event Details   | Individual event information  |
-| Stays           | Accommodation listings        |
-| Hotel Details   | Hotel and room information    |
-| Hotel Dashboard | Hotel owner management        |
-| My Bookings     | Traveller booking information |
-| Budget Planner  | Travel budget management      |
-
-To display a screenshot, use:
-
-```markdown
-![Home Page](screenshots/home.png)
-```
 
 ---
 
