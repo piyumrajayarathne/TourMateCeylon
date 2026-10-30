@@ -22,6 +22,7 @@ export default function Navbar({
   })();
 
   const firstName = user?.firstName || "Traveler";
+  const isHotelOwner = user?.role === "Hotel Owner";
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -154,6 +155,17 @@ export default function Navbar({
                 >
                   My Profile
                 </Link>
+
+                {isHotelOwner && (
+                  <Link
+                    to="/hotel-dashboard"
+                    role="menuitem"
+                    className="account-dropdown-item"
+                    onClick={() => setAccountOpen(false)}
+                  >
+                    Hotel Dashboard
+                  </Link>
+                )}
 
                 <Link
                   to="/my-trips"

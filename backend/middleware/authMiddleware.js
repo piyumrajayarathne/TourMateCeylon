@@ -28,4 +28,15 @@ const protect = (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const authorizeRoles = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.userRole)) {
+      return res.status(403).json({
+        message: "You are not authorized to perform this action."
+      });
+    }
+
+    next();
+  };
+};
+module.exports = { protect,authorizeRoles };

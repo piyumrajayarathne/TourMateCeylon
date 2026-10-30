@@ -1,94 +1,90 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-const stays = [
-  {
-    id: 1,
-    name: "Luxury Beach Villa",
-    location: "Mirissa",
-    type: "Villa",
-    price: 18000,
-    rating: 4.9,
-    image:
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Relax in a beautiful villa near the southern coast, with a peaceful atmosphere and ocean views.",
-  },
-  {
-    id: 2,
-    name: "Ella Mountain Retreat",
-    location: "Ella",
-    type: "Guesthouse",
-    price: 8500,
-    rating: 4.7,
-    image:
-      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Enjoy green mountain scenery and a comfortable stay close to nature.",
-  },
-  {
-    id: 3,
-    name: "Colombo City Hotel",
-    location: "Colombo",
-    type: "Hotel",
-    price: 14500,
-    rating: 4.6,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
-    description:
-      "A stylish city stay with convenient access to restaurants, shopping and attractions.",
-  },
-  {
-    id: 4,
-    name: "Kandy Garden Bungalow",
-    location: "Kandy",
-    type: "Bungalow",
-    price: 11000,
-    rating: 4.8,
-    image:
-      "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Stay in a relaxing setting surrounded by greenery in the hills of Kandy.",
-  },
-  {
-    id: 5,
-    name: "Galle Heritage Stay",
-    location: "Galle",
-    type: "Guesthouse",
-    price: 9500,
-    rating: 4.7,
-    image:
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Discover southern Sri Lankan charm from a comfortable heritage-inspired stay.",
-  },
-  {
-    id: 6,
-    name: "Sigiriya Nature Lodge",
-    location: "Sigiriya",
-    type: "Lodge",
-    price: 7500,
-    rating: 4.5,
-    image:
-      "https://pix10.agoda.net/hotelImages/1095376/0/cf2b167f11816ac3763379c039667fee.jpeg?ce=0&s=414x232",
-    description:
-      "A peaceful base for exploring Sri Lanka's cultural landmarks and natural beauty.",
-  },
-];
+const API_URL = "http://127.0.0.1:5000/api";
 
-const stayTypes = [
-  "All",
-  "Hotel",
-  "Villa",
-  "Guesthouse",
-  "Bungalow",
-  "Lodge",
-];
+const stayTypes = ["All", "Hotel"];
 
 export default function Stays() {
+  const [stays, setStays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("All");
   const [maxPrice, setMaxPrice] = useState("50000");
+
+  useEffect(() => {
+    const fetchStays = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [hotelResponse, roomResponse] = await Promise.all([
+          fetch(`${API_URL}/hotels`),
+          fetch(`${API_URL}/rooms`),
+        ]);
+
+        if (!hotelResponse.ok || !roomResponse.ok) {
+          throw new Error("Failed to retrieve accommodation data.");
+        }
+
+        const hotelData = await hotelResponse.json();
+        const roomData = await roomResponse.json();
+
+        const hotels = hotelData.hotels || [];
+        const rooms = roomData.rooms || [];
+
+        const roomsByHotel = {};
+
+        rooms.forEach((room) => {
+          const hotelId = room.hotelId?._id;
+
+          if (hotelId) {
+            if (!roomsByHotel[hotelId]) {
+              roomsByHotel[hotelId] = [];
+            }
+
+            roomsByHotel[hotelId].push(room);
+          }
+        });
+
+        const formattedStays = hotels.map((hotel) => {
+          const hotelRooms = roomsByHotel[hotel._id] || [];
+
+          const lowestPrice =
+            hotelRooms.length > 0
+              ? Math.min(
+                  ...hotelRooms.map((room) => room.pricePerNight)
+                )
+              : null;
+
+          return {
+            id: hotel._id,
+            name: hotel.hotelName,
+            location: hotel.location,
+            type: "Hotel",
+            price: lowestPrice,
+            rating: hotel.averageRating || 0,
+            image: hotel.images?.[0] || "",
+            description: hotel.description,
+            roomCount: hotelRooms.length,
+          };
+        });
+
+        setStays(formattedStays);
+      } catch (err) {
+        console.error("Error fetching stays:", err);
+        setError(
+          "Unable to load accommodations. Please try again later."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStays();
+  }, []);
 
   const filteredStays = useMemo(() => {
     return stays.filter((stay) => {
@@ -101,11 +97,13 @@ export default function Stays() {
       const matchesType =
         selectedType === "All" || stay.type === selectedType;
 
-      const matchesPrice = stay.price <= Number(maxPrice);
+      const matchesPrice =
+        stay.price !== null &&
+        stay.price <= Number(maxPrice);
 
       return matchesSearch && matchesType && matchesPrice;
     });
-  }, [search, selectedType, maxPrice]);
+  }, [stays, search, selectedType, maxPrice]);
 
   function clearFilters() {
     setSearch("");
@@ -146,8 +144,9 @@ export default function Stays() {
           </div>
 
           <p className="stays-count">
-            {filteredStays.length}{" "}
-            {filteredStays.length === 1 ? "place" : "places"} found
+            {loading ? "Loading..." : `${filteredStays.length} ${
+              filteredStays.length === 1 ? "place" : "places"
+            } found`}
           </p>
         </div>
 
@@ -183,16 +182,34 @@ export default function Stays() {
           </label>
         </div>
 
-        {filteredStays.length > 0 ? (
+        {loading ? (
+          <div className="stays-empty">
+            <h3>Loading accommodations...</h3>
+            <p>Please wait while we retrieve available stays.</p>
+          </div>
+        ) : error ? (
+          <div className="stays-empty">
+            <h3>Something went wrong</h3>
+            <p>{error}</p>
+          </div>
+        ) : filteredStays.length > 0 ? (
           <div className="stays-grid">
             {filteredStays.map((stay) => (
               <article className="stay-card" key={stay.id}>
                 <div className="stay-image-wrapper">
                   <img
-                    src={stay.image}
+                    src={
+                      stay.image ||
+                      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80"
+                    }
                     alt={stay.name}
                     className="stay-image"
                     loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src =
+                        "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
+                    }}
                   />
 
                   <span className="stay-type">{stay.type}</span>
@@ -201,7 +218,7 @@ export default function Stays() {
                 <div className="stay-body">
                   <p className="stay-location">
                     <span aria-hidden="true">⌖</span>{" "}
-                    {stay.location}, Sri Lanka
+                    {stay.location}
                   </p>
 
                   <h3>{stay.name}</h3>
@@ -212,10 +229,16 @@ export default function Stays() {
 
                   <div className="stay-card-footer">
                     <div className="stay-price">
-                      <strong>
-                        LKR {stay.price.toLocaleString("en-LK")}
-                      </strong>
-                      <span> / night</span>
+                      {stay.price !== null ? (
+                        <>
+                          <strong>
+                            LKR {stay.price.toLocaleString("en-LK")}
+                          </strong>
+                          <span> / night</span>
+                        </>
+                      ) : (
+                        <strong>No rooms available</strong>
+                      )}
                     </div>
 
                     <span className="stay-rating">

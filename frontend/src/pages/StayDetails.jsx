@@ -1,116 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-const stays = [
-  {
-    id: 1,
-    name: "Luxury Beach Villa",
-    location: "Mirissa",
-    type: "Villa",
-    price: 18000,
-    rating: 4.9,
-    image:
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Relax in a beautiful villa near the southern coast, with a peaceful atmosphere and ocean views.",
-    amenities: [
-      "Coastal location",
-      "Comfortable accommodation",
-      "Ocean views",
-      "Relaxing atmosphere",
-    ],
-  },
-  {
-    id: 2,
-    name: "Ella Mountain Retreat",
-    location: "Ella",
-    type: "Guesthouse",
-    price: 8500,
-    rating: 4.7,
-    image:
-      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Enjoy green mountain scenery and a comfortable stay close to nature.",
-    amenities: [
-      "Mountain scenery",
-      "Nature surroundings",
-      "Comfortable accommodation",
-      "Peaceful atmosphere",
-    ],
-  },
-  {
-    id: 3,
-    name: "Colombo City Hotel",
-    location: "Colombo",
-    type: "Hotel",
-    price: 14500,
-    rating: 4.6,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
-    description:
-      "A stylish city stay with convenient access to restaurants, shopping and attractions.",
-    amenities: [
-      "City location",
-      "Nearby restaurants",
-      "Shopping access",
-      "Nearby attractions",
-    ],
-  },
-  {
-    id: 4,
-    name: "Kandy Garden Bungalow",
-    location: "Kandy",
-    type: "Bungalow",
-    price: 11000,
-    rating: 4.8,
-    image:
-      "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Stay in a relaxing setting surrounded by greenery in the hills of Kandy.",
-    amenities: [
-      "Green surroundings",
-      "Relaxing setting",
-      "Nature views",
-      "Convenient Kandy location",
-    ],
-  },
-  {
-    id: 5,
-    name: "Galle Heritage Stay",
-    location: "Galle",
-    type: "Guesthouse",
-    price: 9500,
-    rating: 4.7,
-    image:
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=80",
-    description:
-      "Discover southern Sri Lankan charm from a comfortable heritage-inspired stay.",
-    amenities: [
-      "Heritage-inspired setting",
-      "Southern Sri Lankan location",
-      "Comfortable accommodation",
-      "Nearby local attractions",
-    ],
-  },
-  {
-    id: 6,
-    name: "Sigiriya Nature Lodge",
-    location: "Sigiriya",
-    type: "Lodge",
-    price: 7500,
-    rating: 4.5,
-    image:
-      "https://pix10.agoda.net/hotelImages/1095376/0/cf2b167f11816ac3763379c039667fee.jpeg?ce=0&s=414x232",
-    description:
-      "A peaceful base for exploring Sri Lanka's cultural landmarks and natural beauty.",
-    amenities: [
-      "Nature surroundings",
-      "Peaceful setting",
-      "Cultural attractions nearby",
-      "Access to local landmarks",
-    ],
-  },
-];
+const API_URL = "http://127.0.0.1:5000/api";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
 
 function getLocalDateString(date) {
   const year = date.getFullYear();
@@ -149,26 +43,88 @@ const initialReservation = {
   checkIn: "",
   checkOut: "",
   guests: "2",
-  roomPreference: "Standard room",
+  roomPreference: "",
   specialRequests: "",
 };
 
 export default function StayDetails() {
   const { id } = useParams();
 
-  const stay = stays.find((item) => String(item.id) === id);
+  const [stay, setStay] = useState(null);
+  const [rooms, setRooms] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
 
   const [modalMode, setModalMode] = useState(null);
   const [reservation, setReservation] = useState(initialReservation);
+
   const [error, setError] = useState("");
   const [confirmationReference, setConfirmationReference] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchStayDetails = async () => {
+      try {
+        setLoading(true);
+        setPageError("");
+
+        const [hotelResponse, roomsResponse] = await Promise.all([
+          fetch(`${API_URL}/hotels/${id}`),
+          fetch(`${API_URL}/rooms/hotel/${id}`),
+        ]);
+
+        if (!hotelResponse.ok) {
+          throw new Error("Unable to retrieve hotel details.");
+        }
+
+        if (!roomsResponse.ok) {
+          throw new Error("Unable to retrieve available rooms.");
+        }
+
+        const hotelData = await hotelResponse.json();
+        const roomsData = await roomsResponse.json();
+
+        const hotel = hotelData.hotel || hotelData;
+        const availableRooms = roomsData.rooms || [];
+
+        setStay(hotel);
+        setRooms(availableRooms);
+
+        setReservation((previous) => ({
+          ...previous,
+          roomPreference: availableRooms[0]?._id || "",
+          guests: String(
+            Math.min(2, availableRooms[0]?.maximumGuests || 1)
+          ),
+        }));
+      } catch (err) {
+        console.error("Error fetching stay details:", err);
+        setPageError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStayDetails();
+  }, [id]);
+
+  const selectedRoom = rooms.find(
+    (room) => room._id === reservation.roomPreference
+  );
 
   const today = getLocalDateString(new Date());
+
   const nights = calculateNights(
     reservation.checkIn,
     reservation.checkOut
   );
-  const totalPrice = stay ? stay.price * nights : 0;
+
+  const totalPrice = selectedRoom
+    ? selectedRoom.pricePerNight * nights
+    : 0;
+
+  const stayImage = stay?.images?.[0] || FALLBACK_IMAGE;
 
   function openReservationForm() {
     const tomorrow = new Date();
@@ -177,10 +133,14 @@ export default function StayDetails() {
     const dayAfterTomorrow = new Date();
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
 
+    const firstRoom = rooms[0];
+
     setReservation({
       ...initialReservation,
       checkIn: getLocalDateString(tomorrow),
       checkOut: getLocalDateString(dayAfterTomorrow),
+      roomPreference: firstRoom?._id || "",
+      guests: String(Math.min(2, firstRoom?.maximumGuests || 1)),
     });
 
     setError("");
@@ -189,6 +149,8 @@ export default function StayDetails() {
   }
 
   function closeModal() {
+    if (submitting) return;
+
     setModalMode(null);
     setError("");
   }
@@ -202,11 +164,22 @@ export default function StayDetails() {
       ...(name === "checkIn" && previous.checkOut <= value
         ? { checkOut: "" }
         : {}),
+      ...(name === "roomPreference"
+        ? {
+            guests: String(
+              Math.min(
+                Number(previous.guests),
+                rooms.find((room) => room._id === value)?.maximumGuests || 1
+              )
+            ),
+          }
+        : {}),
     }));
 
     setError("");
   }
 
+  // Validate reservation details
   function handleReview(event) {
     event.preventDefault();
     setError("");
@@ -230,35 +203,108 @@ export default function StayDetails() {
       return;
     }
 
+    const guestCount = Number(reservation.guests);
+
     if (
-      !Number.isInteger(Number(reservation.guests)) ||
-      Number(reservation.guests) < 1 ||
-      Number(reservation.guests) > 20
+      !Number.isInteger(guestCount) ||
+      guestCount < 1 ||
+      !selectedRoom ||
+      guestCount > selectedRoom.maximumGuests
     ) {
-      setError("Please select between 1 and 20 guests.");
+      setError("Please select a valid room and guest count.");
+      return;
+    }
+
+    if (nights < 1) {
+      setError("Please select at least one night.");
       return;
     }
 
     setModalMode("preview");
   }
 
-  function handleConfirmReservation() {
-    // Demo confirmation only. No reservation is saved to a server yet.
-    const reference = `TMC-${Date.now().toString().slice(-8)}`;
+  // Create booking in MongoDB
+  async function handleConfirmReservation() {
+    try {
+      setSubmitting(true);
+      setError("");
 
-    setConfirmationReference(reference);
-    setModalMode("confirmed");
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("Please log in before making a reservation.");
+        return;
+      }
+
+      if (!selectedRoom) {
+        setError("The selected room is no longer available.");
+        return;
+      }
+
+      const bookingData = {
+        bookingType: "Hotel",
+        serviceId: selectedRoom._id,
+        startDate: reservation.checkIn,
+        endDate: reservation.checkOut,
+        numberOfGuests: Number(reservation.guests),
+        amount: totalPrice,
+      };
+
+      const response = await fetch(`${API_URL}/bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to create your reservation."
+        );
+      }
+
+      setConfirmationReference(
+        data.booking?._id || "Booking created"
+      );
+
+      setModalMode("confirmed");
+    } catch (err) {
+      console.error("Booking error:", err);
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  if (!stay) {
+  // Loading
+  if (loading) {
+    return (
+      <main className="stay-details-not-found">
+        <h1>Loading accommodation...</h1>
+        <p>Please wait while we retrieve the hotel details.</p>
+      </main>
+    );
+  }
+
+  // Error or missing hotel
+  if (pageError || !stay) {
     return (
       <main className="stay-details-not-found">
         <h1>Accommodation not found</h1>
-        <p>We couldn't find this accommodation.</p>
+        <p>{pageError || "We couldn't find this accommodation."}</p>
         <Link to="/stays">Back to stays</Link>
       </main>
     );
   }
+
+  const lowestPrice =
+    rooms.length > 0
+      ? Math.min(...rooms.map((room) => room.pricePerNight))
+      : null;
 
   return (
     <main className="stay-details-page">
@@ -270,12 +316,16 @@ export default function StayDetails() {
         <article className="stay-details-card">
           <div className="stay-details-image-wrapper">
             <img
-              src={stay.image}
-              alt={stay.name}
+              src={stayImage}
+              alt={stay.hotelName}
               className="stay-details-image"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = FALLBACK_IMAGE;
+              }}
             />
 
-            <span className="stay-details-type">{stay.type}</span>
+            <span className="stay-details-type">Hotel</span>
           </div>
 
           <div className="stay-details-body">
@@ -283,17 +333,17 @@ export default function StayDetails() {
               YOUR STAY IN SRI LANKA
             </p>
 
-            <h1>{stay.name}</h1>
+            <h1>{stay.hotelName}</h1>
 
             <p className="stay-details-location">
               <span aria-hidden="true">⌖</span>{" "}
-              {stay.location}, Sri Lanka
+              {stay.location}
             </p>
 
             <div className="stay-details-rating">
               <span aria-hidden="true">★</span>
-              {stay.rating.toFixed(1)}
-              <span>Sample rating</span>
+              {Number(stay.averageRating || 0).toFixed(1)}
+              <span>Rating</span>
             </div>
 
             <p className="stay-details-description">
@@ -301,9 +351,12 @@ export default function StayDetails() {
             </p>
 
             <div className="stay-details-price">
-              <span>Sample price per night</span>
+              <span>Starting price per night</span>
+
               <strong>
-                LKR {stay.price.toLocaleString("en-LK")}
+                {lowestPrice !== null
+                  ? `LKR ${lowestPrice.toLocaleString("en-LK")}`
+                  : "No rooms available"}
               </strong>
             </div>
 
@@ -311,7 +364,7 @@ export default function StayDetails() {
               <h2>Stay Highlights</h2>
 
               <ul>
-                {stay.amenities.map((amenity) => (
+                {(stay.amenities || []).map((amenity) => (
                   <li key={amenity}>
                     <span aria-hidden="true">✓</span>
                     {amenity}
@@ -320,12 +373,33 @@ export default function StayDetails() {
               </ul>
             </section>
 
+            <section className="stay-details-amenities">
+              <h2>Available Rooms</h2>
+
+              {rooms.length > 0 ? (
+                <ul>
+                  {rooms.map((room) => (
+                    <li key={room._id}>
+                      <span aria-hidden="true">✓</span>
+                      {room.roomType} — LKR{" "}
+                      {room.pricePerNight.toLocaleString("en-LK")} / night
+                      {" "}({room.maximumGuests} guests maximum)
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No available rooms at the moment.</p>
+              )}
+            </section>
+
             <button
               type="button"
               className="stay-book-button"
               onClick={openReservationForm}
+              disabled={rooms.length === 0}
             >
-              Book Now <span aria-hidden="true">→</span>
+              {rooms.length > 0 ? "Book Now" : "No Rooms Available"}
+              <span aria-hidden="true">→</span>
             </button>
 
             <p className="stay-details-note">
@@ -355,6 +429,7 @@ export default function StayDetails() {
               className="reservation-modal-close"
               onClick={closeModal}
               aria-label="Close reservation dialog"
+              disabled={submitting}
             >
               ×
             </button>
@@ -370,16 +445,26 @@ export default function StayDetails() {
                 </h2>
 
                 <p className="reservation-modal-subtitle">
-                  {stay.name} · {stay.location}, Sri Lanka
+                  {stay.hotelName} · {stay.location}
                 </p>
 
                 <div className="reservation-selected-stay">
-                  <img src={stay.image} alt="" />
+                  <img
+                    src={stayImage}
+                    alt={stay.hotelName}
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = FALLBACK_IMAGE;
+                    }}
+                  />
+
                   <div>
-                    <strong>{stay.name}</strong>
-                    <span>{stay.type} · {stay.location}</span>
+                    <strong>{stay.hotelName}</strong>
+                    <span>Hotel · {stay.location}</span>
                     <span>
-                      LKR {stay.price.toLocaleString("en-LK")} / night
+                      {selectedRoom
+                        ? `LKR ${selectedRoom.pricePerNight.toLocaleString("en-LK")} / night`
+                        : "Select a room"}
                     </span>
                   </div>
                 </div>
@@ -390,6 +475,7 @@ export default function StayDetails() {
                 >
                   <label>
                     Guest full name
+
                     <input
                       name="guestName"
                       value={reservation.guestName}
@@ -403,6 +489,7 @@ export default function StayDetails() {
 
                   <label>
                     Email address
+
                     <input
                       name="email"
                       type="email"
@@ -416,6 +503,7 @@ export default function StayDetails() {
 
                   <label>
                     Mobile number
+
                     <input
                       name="mobile"
                       type="tel"
@@ -430,24 +518,27 @@ export default function StayDetails() {
 
                   <label>
                     Number of guests
+
                     <select
                       name="guests"
                       value={reservation.guests}
                       onChange={handleChange}
                       required
                     >
-                      {Array.from({ length: 20 }, (_, index) => index + 1).map(
-                        (count) => (
-                          <option key={count} value={String(count)}>
-                            {count} {count === 1 ? "guest" : "guests"}
-                          </option>
-                        )
-                      )}
+                      {Array.from(
+                        { length: selectedRoom?.maximumGuests || 1 },
+                        (_, index) => index + 1
+                      ).map((count) => (
+                        <option key={count} value={String(count)}>
+                          {count} {count === 1 ? "guest" : "guests"}
+                        </option>
+                      ))}
                     </select>
                   </label>
 
                   <label>
                     Check-in
+
                     <input
                       name="checkIn"
                       type="date"
@@ -460,6 +551,7 @@ export default function StayDetails() {
 
                   <label>
                     Check-out
+
                     <input
                       name="checkOut"
                       type="date"
@@ -472,20 +564,25 @@ export default function StayDetails() {
 
                   <label className="reservation-form-full">
                     Room preference
+
                     <select
                       name="roomPreference"
                       value={reservation.roomPreference}
                       onChange={handleChange}
+                      required
                     >
-                      <option>Standard room</option>
-                      <option>Deluxe room</option>
-                      <option>Family room</option>
-                      <option>Suite</option>
+                      {rooms.map((room) => (
+                        <option key={room._id} value={room._id}>
+                          {room.roomType} — LKR{" "}
+                          {room.pricePerNight.toLocaleString("en-LK")} / night
+                        </option>
+                      ))}
                     </select>
                   </label>
 
                   <label className="reservation-form-full">
                     Special requests (optional)
+
                     <textarea
                       name="specialRequests"
                       value={reservation.specialRequests}
@@ -536,14 +633,22 @@ export default function StayDetails() {
                 </p>
 
                 <div className="reservation-preview-stay">
-                  <img src={stay.image} alt={stay.name} />
+                  <img
+                    src={stayImage}
+                    alt={stay.hotelName}
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = FALLBACK_IMAGE;
+                    }}
+                  />
 
                   <div>
-                    <h3>{stay.name}</h3>
-                    <p>{stay.location}, Sri Lanka</p>
-                    <p>{stay.type}</p>
+                    <h3>{stay.hotelName}</h3>
+                    <p>{stay.location}</p>
+                    <p>{selectedRoom?.roomType}</p>
+
                     <strong>
-                      LKR {stay.price.toLocaleString("en-LK")} / night
+                      LKR {selectedRoom?.pricePerNight.toLocaleString("en-LK")} / night
                     </strong>
                   </div>
                 </div>
@@ -581,7 +686,7 @@ export default function StayDetails() {
 
                   <div>
                     <span>Room preference</span>
-                    <strong>{reservation.roomPreference}</strong>
+                    <strong>{selectedRoom?.roomType}</strong>
                   </div>
 
                   {reservation.specialRequests.trim() && (
@@ -595,9 +700,10 @@ export default function StayDetails() {
                 <div className="reservation-price-breakdown">
                   <div>
                     <span>
-                      LKR {stay.price.toLocaleString("en-LK")} × {nights}{" "}
+                      LKR {selectedRoom?.pricePerNight.toLocaleString("en-LK")} × {nights}{" "}
                       {nights === 1 ? "night" : "nights"}
                     </span>
+
                     <strong>
                       LKR {totalPrice.toLocaleString("en-LK")}
                     </strong>
@@ -605,15 +711,15 @@ export default function StayDetails() {
 
                   <div className="reservation-total">
                     <span>Estimated total</span>
+
                     <strong>
                       LKR {totalPrice.toLocaleString("en-LK")}
                     </strong>
                   </div>
 
                   <p>
-                    Based on the displayed sample nightly price. Taxes,
-                    extra fees, availability and final rates have not
-                    been verified.
+                    This booking will be saved to your TourMateCeylon account.
+                    Payment is not processed at this stage.
                   </p>
                 </div>
 
@@ -631,6 +737,7 @@ export default function StayDetails() {
                       setError("");
                       setModalMode("form");
                     }}
+                    disabled={submitting}
                   >
                     ← Edit details
                   </button>
@@ -639,8 +746,9 @@ export default function StayDetails() {
                     type="button"
                     className="reservation-primary-button"
                     onClick={handleConfirmReservation}
+                    disabled={submitting}
                   >
-                    Confirm Reservation
+                    {submitting ? "Saving..." : "Confirm Reservation"}
                   </button>
                 </div>
               </>
@@ -648,7 +756,10 @@ export default function StayDetails() {
 
             {modalMode === "confirmed" && (
               <div className="reservation-confirmation">
-                <div className="reservation-success-icon" aria-hidden="true">
+                <div
+                  className="reservation-success-icon"
+                  aria-hidden="true"
+                >
                   ✓
                 </div>
 
@@ -657,32 +768,31 @@ export default function StayDetails() {
                 </p>
 
                 <h2 id="reservation-modal-title">
-                  Details confirmed!
+                  Booking created successfully!
                 </h2>
 
                 <p>
-                  Your reservation form has been completed for{" "}
-                  <strong>{stay.name}</strong>.
+                  Your booking has been saved for{" "}
+                  <strong>{stay.hotelName}</strong>.
                 </p>
 
                 <div className="reservation-reference">
-                  <span>Demo reference</span>
+                  <span>Booking reference</span>
                   <strong>{confirmationReference}</strong>
                 </div>
 
                 <p className="reservation-demo-note">
-                  This is a frontend demonstration only. No reservation
-                  has been saved, no room availability has been checked,
-                  and no booking confirmation has been sent.
+                  Your booking is saved in your account with Pending
+                  payment status. Payment and final room availability
+                  confirmation have not yet been implemented.
                 </p>
 
-                <button
-                  type="button"
+                <Link
+                  to="/bookings"
                   className="reservation-primary-button"
-                  onClick={closeModal}
                 >
-                  Done
-                </button>
+                  View My Bookings
+                </Link>
               </div>
             )}
           </section>

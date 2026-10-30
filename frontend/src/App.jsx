@@ -15,6 +15,7 @@ import MyTrips from "./pages/MyTrips.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import Budget from "./pages/BudgetDashboard.jsx";
 import Profile from "./pages/Profile.jsx";
+import HotelDashboard from "./pages/HotelDashboard.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -37,6 +38,7 @@ export default function App() {
   }
 
   function handleLogout() {
+    localStorage.removeItem("token");
     localStorage.removeItem("tourmate-demo-auth");
     localStorage.removeItem("tourmate-profile");
     localStorage.removeItem("tourmate-user");
@@ -117,6 +119,11 @@ export default function App() {
               description="The page you're looking for doesn't exist."
             />
           }
+        />
+        {/* Hotel Owner Dashboard */}
+        <Route
+          path="/hotel-dashboard"
+          element={<HotelDashboard />}
         />
       </Routes>
 
