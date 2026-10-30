@@ -4976,3 +4976,298 @@ button.my-trip-view-button {
     font-size: 31px;
   }
 }
+
+
+.hotel-dashboard {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px;
+  color: #123c3a;
+}
+
+.hotel-dashboard h1,
+.hotel-dashboard h2,
+.hotel-dashboard h3 {
+  color: #123c3a;
+}
+
+.hotel-dashboard h1 {
+  font-family: Georgia, serif;
+  font-size: 42px;
+  font-weight: 400;
+  margin-bottom: 12px;
+}
+
+.hotel-dashboard h2 {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+}
+
+.hotel-dashboard p {
+  line-height: 1.6;
+}
+
+/* Dashboard statistics */
+
+.hotel-dashboard .dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin: 35px 0 55px;
+}
+
+.hotel-dashboard .stat-card {
+  background: #f0eee8;
+  border-radius: 14px;
+  padding: 28px;
+  min-height: 150px;
+}
+
+.hotel-dashboard .stat-card h3 {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.hotel-dashboard .stat-card p {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  margin-top: 20px;
+}
+
+/* Section headings */
+
+.hotel-dashboard .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.hotel-dashboard .hotel-section,
+.hotel-dashboard .room-section {
+  margin-top: 45px;
+}
+
+/* Forms */
+
+.hotel-dashboard .dashboard-form {
+  background: #faf8f3;
+  border: 1px solid #dedbd3;
+  border-radius: 16px;
+  padding: 30px;
+  margin: 25px 0;
+}
+
+.hotel-dashboard .dashboard-form h3 {
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-weight: 400;
+  margin-bottom: 25px;
+}
+
+.hotel-dashboard .dashboard-form label {
+  display: block;
+  margin-bottom: 18px;
+  color: #344b48;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.hotel-dashboard .dashboard-form input,
+.hotel-dashboard .dashboard-form textarea,
+.hotel-dashboard .dashboard-form select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 13px 15px;
+  border: 1px solid #d5d2ca;
+  border-radius: 8px;
+  background: #fff;
+  color: #123c3a;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.hotel-dashboard .dashboard-form textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.hotel-dashboard .dashboard-form input:focus,
+.hotel-dashboard .dashboard-form textarea:focus,
+.hotel-dashboard .dashboard-form select:focus {
+  border-color: #276b63;
+  box-shadow: 0 0 0 3px rgba(39, 107, 99, 0.12);
+}
+
+/* Buttons */
+
+.hotel-dashboard button {
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.hotel-dashboard .primary-button {
+  background: #164e49;
+  color: #fff;
+  border: 1px solid #164e49;
+  border-radius: 8px;
+  padding: 12px 22px;
+  font-size: 15px;
+}
+
+.hotel-dashboard .primary-button:hover {
+  background: #0e3935;
+}
+
+.hotel-dashboard .secondary-button {
+  background: transparent;
+  color: #164e49;
+  border: 1px solid #164e49;
+  border-radius: 8px;
+  padding: 11px 20px;
+  font-size: 15px;
+}
+
+.hotel-dashboard .secondary-button:hover {
+  background: #e9eee9;
+}
+
+.hotel-dashboard button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hotel-dashboard .dashboard-form button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Hotel and room cards */
+
+.hotel-dashboard .hotel-card,
+.hotel-dashboard .room-card {
+  background: #faf8f3;
+  border: 1px solid #dedbd3;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.hotel-dashboard .hotel-card h3,
+.hotel-dashboard .room-card h3 {
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-weight: 400;
+}
+
+/* Messages */
+
+.hotel-dashboard .success-message {
+  color: #24734c;
+  background: #eaf5ed;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.hotel-dashboard .error-message {
+  color: #a83232;
+  background: #fbeaea;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+/* Responsive layout */
+
+@media (max-width: 768px) {
+  .hotel-dashboard {
+    padding: 22px 16px;
+  }
+
+  .hotel-dashboard h1 {
+    font-size: 34px;
+  }
+
+  .hotel-dashboard .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .hotel-dashboard .stat-card {
+    padding: 18px;
+  }
+
+  .hotel-dashboard .section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hotel-dashboard .dashboard-form {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hotel-dashboard .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.hotel-dashboard .hotel-list,
+.hotel-dashboard .room-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.hotel-dashboard .dashboard-card-image {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  border-radius: 9px;
+  margin-bottom: 15px;
+}
+
+.hotel-dashboard .form-button-group,
+.hotel-dashboard .room-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.hotel-dashboard .form-button-group button {
+  flex: 1;
+}
+
+.hotel-dashboard .room-card-actions button {
+  width: auto;
+}
+
+.hotel-dashboard .hotel-card p,
+.hotel-dashboard .room-card p {
+  margin: 10px 0;
+}
+
+
+.hotel-dashboard .hotel-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.hotel-dashboard .hotel-card-actions button {
+  flex: 1;
+}

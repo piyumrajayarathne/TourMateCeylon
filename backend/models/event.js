@@ -11,12 +11,13 @@ const eventSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: [
-        "Cultural Festival",
-        "Religious Festival",
-        "Food Festival",
-        "Music Event",
-        "Tourism Exhibition"
-      ],
+        "Cultural",
+        "Arts",
+        "Religious",
+        "Adventure",
+        "Nature",
+        "Food"
+     ],
       required: true
     },
 

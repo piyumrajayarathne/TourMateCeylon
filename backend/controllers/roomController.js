@@ -2,6 +2,9 @@ const Room = require("../models/room");
 const Hotel = require("../models/hotel");
 const Booking = require("../models/booking");
 
+const MAX_ROOM_PRICE = 50000;
+
+// Create room
 const createRoom = async (req, res) => {
   try {
     const {
@@ -9,7 +12,7 @@ const createRoom = async (req, res) => {
       roomType,
       pricePerNight,
       maximumGuests,
-      images
+      images,
     } = req.body;
 
     if (
@@ -19,7 +22,7 @@ const createRoom = async (req, res) => {
       maximumGuests == null
     ) {
       return res.status(400).json({
-        message: "Please provide all required room details."
+        message: "Please provide all required room details.",
       });
     }
 
@@ -28,23 +31,29 @@ const createRoom = async (req, res) => {
 
     if (
       !Number.isFinite(price) ||
-      price < 0 ||
-      !Number.isInteger(guests) ||
-      guests < 1
+      !Number.isInteger(price) ||
+      price < 1 ||
+      price > MAX_ROOM_PRICE
     ) {
       return res.status(400).json({
-        message: "Please provide a valid room price and maximum guest count."
+        message: "Room price must be a whole number between LKR 1 and LKR 50,000.",
+      });
+    }
+
+    if (!Number.isInteger(guests) || guests < 1) {
+      return res.status(400).json({
+        message: "Please provide a valid maximum guest count.",
       });
     }
 
     const hotel = await Hotel.findOne({
       _id: hotelId,
-      ownerId: req.userId
+      ownerId: req.userId,
     });
 
     if (!hotel) {
       return res.status(404).json({
-        message: "Hotel not found or you do not own this hotel."
+        message: "Hotel not found or you do not own this hotel.",
       });
     }
 
@@ -53,141 +62,158 @@ const createRoom = async (req, res) => {
       roomType,
       pricePerNight: price,
       maximumGuests: guests,
-      images
+      images,
     });
 
     return res.status(201).json({
       message: "Room created successfully.",
-      room
+      room,
     });
   } catch (error) {
-    if (error.name === "ValidationError" || error.name === "CastError") {
+    if (
+      error.name === "ValidationError" ||
+      error.name === "CastError"
+    ) {
       return res.status(400).json({
-        message: "Invalid room details."
+        message: "Invalid room details.",
       });
     }
 
     console.error("Create room error:", error);
 
     return res.status(500).json({
-      message: "Failed to create room."
+      message: "Failed to create room.",
     });
   }
 };
 
+// Get all available rooms
 const getAllAvailableRooms = async (req, res) => {
   try {
     const rooms = await Room.find({
-      availabilityStatus: "Available"
+      availabilityStatus: "Available",
     })
       .populate("hotelId", "hotelName location images averageRating")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
       count: rooms.length,
-      rooms
+      rooms,
     });
   } catch (error) {
     console.error("Get rooms error:", error);
 
     return res.status(500).json({
-      message: "Failed to retrieve rooms."
+      message: "Failed to retrieve rooms.",
     });
   }
 };
 
+// Get available rooms by hotel
 const getRoomsByHotel = async (req, res) => {
   try {
     const rooms = await Room.find({
       hotelId: req.params.hotelId,
-      availabilityStatus: "Available"
+      availabilityStatus: "Available",
     }).sort({ createdAt: -1 });
 
     return res.status(200).json({
       count: rooms.length,
-      rooms
+      rooms,
     });
   } catch (error) {
     if (error.name === "CastError") {
       return res.status(400).json({
-        message: "Invalid hotel ID."
+        message: "Invalid hotel ID.",
       });
     }
 
     console.error("Get hotel rooms error:", error);
 
     return res.status(500).json({
-      message: "Failed to retrieve hotel rooms."
+      message: "Failed to retrieve hotel rooms.",
     });
   }
 };
 
+// Get rooms belonging to logged-in hotel owner
 const getMyRooms = async (req, res) => {
   try {
     const hotels = await Hotel.find({
-      ownerId: req.userId
+      ownerId: req.userId,
     }).select("_id");
 
     const hotelIds = hotels.map((hotel) => hotel._id);
 
     const rooms = await Room.find({
-      hotelId: { $in: hotelIds }
+      hotelId: { $in: hotelIds },
     })
       .populate("hotelId", "hotelName location")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
       count: rooms.length,
-      rooms
+      rooms,
     });
   } catch (error) {
     console.error("Get owner rooms error:", error);
 
     return res.status(500).json({
-      message: "Failed to retrieve your rooms."
+      message: "Failed to retrieve your rooms.",
     });
   }
 };
 
-
+// Update room
 const updateRoom = async (req, res) => {
   try {
     const {
       roomType,
       pricePerNight,
       maximumGuests,
-      images
+      images,
     } = req.body;
 
     const room = await Room.findById(req.params.roomId);
 
     if (!room) {
       return res.status(404).json({
-        message: "Room not found."
+        message: "Room not found.",
       });
     }
 
     const hotel = await Hotel.findOne({
       _id: room.hotelId,
-      ownerId: req.userId
+      ownerId: req.userId,
     });
 
     if (!hotel) {
       return res.status(403).json({
-        message: "You are not authorized to update this room."
+        message: "You are not authorized to update this room.",
       });
     }
 
     if (roomType !== undefined) {
-      room.roomType = roomType;
+      if (!roomType.trim()) {
+        return res.status(400).json({
+          message: "Room type cannot be empty.",
+        });
+      }
+
+      room.roomType = roomType.trim();
     }
 
     if (pricePerNight !== undefined) {
       const price = Number(pricePerNight);
 
-      if (!Number.isFinite(price) || price < 0) {
+      if (
+        !Number.isFinite(price) ||
+        !Number.isInteger(price) ||
+        price < 1 ||
+        price > MAX_ROOM_PRICE
+      ) {
         return res.status(400).json({
-          message: "Please provide a valid room price."
+          message: "Room price must be a whole number between LKR 1 and LKR 50,000.",
         });
       }
 
@@ -199,7 +225,7 @@ const updateRoom = async (req, res) => {
 
       if (!Number.isInteger(guests) || guests < 1) {
         return res.status(400).json({
-          message: "Please provide a valid maximum guest count."
+          message: "Please provide a valid maximum guest count.",
         });
       }
 
@@ -209,7 +235,7 @@ const updateRoom = async (req, res) => {
     if (images !== undefined) {
       if (!Array.isArray(images)) {
         return res.status(400).json({
-          message: "Images must be an array."
+          message: "Images must be an array.",
         });
       }
 
@@ -220,26 +246,27 @@ const updateRoom = async (req, res) => {
 
     return res.status(200).json({
       message: "Room updated successfully.",
-      room
+      room,
     });
   } catch (error) {
     console.error("Update room error:", error);
 
     return res.status(500).json({
-      message: "Failed to update room."
+      message: "Failed to update room.",
     });
   }
 };
-
 
 // Change room availability
 const updateRoomAvailability = async (req, res) => {
   try {
     const { availabilityStatus } = req.body;
 
-    if (!["Available", "Unavailable"].includes(availabilityStatus)) {
+    if (
+      !["Available", "Unavailable"].includes(availabilityStatus)
+    ) {
       return res.status(400).json({
-        message: "Invalid availability status."
+        message: "Invalid availability status.",
       });
     }
 
@@ -247,18 +274,18 @@ const updateRoomAvailability = async (req, res) => {
 
     if (!room) {
       return res.status(404).json({
-        message: "Room not found."
+        message: "Room not found.",
       });
     }
 
     const hotel = await Hotel.findOne({
       _id: room.hotelId,
-      ownerId: req.userId
+      ownerId: req.userId,
     });
 
     if (!hotel) {
       return res.status(403).json({
-        message: "You are not authorized to update this room."
+        message: "You are not authorized to update this room.",
       });
     }
 
@@ -268,63 +295,63 @@ const updateRoomAvailability = async (req, res) => {
 
     return res.status(200).json({
       message: "Room availability updated successfully.",
-      room
+      room,
     });
   } catch (error) {
     console.error("Update room availability error:", error);
 
     return res.status(500).json({
-      message: "Failed to update room availability."
+      message: "Failed to update room availability.",
     });
   }
 };
 
+// Delete room
 const deleteRoom = async (req, res) => {
   try {
-    const existingBooking = await Booking.findOne({
-      serviceId: req.params.roomId,
-      bookingType: "Hotel",
-      bookingStatus: { $in: ["Pending", "Confirmed"] }
-    });
-
-    console.log("Active booking found:", existingBooking);
-
-    if (existingBooking) {
-      return res.status(400).json({
-        message: "This room cannot be deleted because it has active bookings."
-      });
-    }
-
     const room = await Room.findById(req.params.roomId);
 
     if (!room) {
       return res.status(404).json({
-        message: "Room not found."
+        message: "Room not found.",
       });
     }
 
     const hotel = await Hotel.findOne({
       _id: room.hotelId,
-      ownerId: req.userId
+      ownerId: req.userId,
     });
 
     if (!hotel) {
       return res.status(403).json({
-        message: "You are not authorized to delete this room."
+        message: "You are not authorized to delete this room.",
+      });
+    }
+
+    const existingBooking = await Booking.findOne({
+      serviceId: req.params.roomId,
+      bookingType: "Hotel",
+      bookingStatus: {
+        $in: ["Pending", "Confirmed"],
+      },
+    });
+
+    if (existingBooking) {
+      return res.status(400).json({
+        message: "This room cannot be deleted because it has active bookings.",
       });
     }
 
     await Room.findByIdAndDelete(req.params.roomId);
 
     return res.status(200).json({
-      message: "Room deleted successfully."
+      message: "Room deleted successfully.",
     });
-
   } catch (error) {
     console.error("Delete room error:", error);
 
     return res.status(500).json({
-      message: "Failed to delete room."
+      message: "Failed to delete room.",
     });
   }
 };
@@ -336,5 +363,5 @@ module.exports = {
   getMyRooms,
   updateRoom,
   updateRoomAvailability,
-  deleteRoom
+  deleteRoom,
 };

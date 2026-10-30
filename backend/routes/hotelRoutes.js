@@ -9,7 +9,10 @@ const {
 const {
   createHotel,
   getAllHotels,
-  getHotelById
+  getHotelById,
+  getMyHotels,
+  updateHotel,
+  deleteHotel
 } = require("../controllers/hotelController");
 
 router.post(
@@ -19,8 +22,28 @@ router.post(
   createHotel
 );
 
-router.get("/", getAllHotels);
+router.get(
+  "/my-hotels",
+  protect,
+  authorizeRoles("Hotel Owner"),
+  getMyHotels
+);
 
+router.put(
+  "/:id",
+  protect,
+  authorizeRoles("Hotel Owner"),
+  updateHotel
+);
+
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("Hotel Owner"),
+  deleteHotel
+);
+
+router.get("/", getAllHotels);
 router.get("/:id", getHotelById);
 
 module.exports = router;

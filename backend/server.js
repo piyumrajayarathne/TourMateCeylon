@@ -10,6 +10,7 @@ const expenseRoutes = require("./routes/expenseRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const hotelRoutes = require("./routes/hotelRoutes");
 const roomRoutes = require("./routes/roomRoutes");
+const eventRoutes = require("./routes/eventRoutes");
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/events", eventRoutes);
 
 app.get("/", (req, res) => {
   res.json({

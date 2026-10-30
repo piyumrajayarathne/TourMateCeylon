@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 
 const API_URL = "http://127.0.0.1:5000/api";
 
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
+
 const stayTypes = ["All", "Hotel"];
 
 export default function Stays() {
@@ -38,7 +41,8 @@ export default function Stays() {
         const roomsByHotel = {};
 
         rooms.forEach((room) => {
-          const hotelId = room.hotelId?._id;
+          const hotelId =
+            room.hotelId?._id || room.hotelId;
 
           if (hotelId) {
             if (!roomsByHotel[hotelId]) {
@@ -52,10 +56,16 @@ export default function Stays() {
         const formattedStays = hotels.map((hotel) => {
           const hotelRooms = roomsByHotel[hotel._id] || [];
 
+          const availableRooms = hotelRooms.filter(
+            (room) => room.availabilityStatus === "Available"
+          );
+
           const lowestPrice =
-            hotelRooms.length > 0
+            availableRooms.length > 0
               ? Math.min(
-                  ...hotelRooms.map((room) => room.pricePerNight)
+                  ...availableRooms.map((room) =>
+                    Number(room.pricePerNight)
+                  )
                 )
               : null;
 
@@ -68,11 +78,14 @@ export default function Stays() {
             rating: hotel.averageRating || 0,
             image: hotel.images?.[0] || "",
             description: hotel.description,
-            roomCount: hotelRooms.length,
+            roomCount: availableRooms.length,
           };
         });
 
-        setStays(formattedStays);
+        // Only show hotels that have available rooms
+        setStays(
+          formattedStays.filter((stay) => stay.roomCount > 0)
+        );
       } catch (err) {
         console.error("Error fetching stays:", err);
         setError(
@@ -113,6 +126,7 @@ export default function Stays() {
 
   return (
     <main className="stays-page">
+      {/* Hero section */}
       <section className="stays-hero">
         <p className="stays-eyebrow">YOUR SRI LANKAN ESCAPE</p>
 
@@ -136,6 +150,7 @@ export default function Stays() {
         </div>
       </section>
 
+      {/* Accommodation section */}
       <section className="stays-content">
         <div className="stays-heading">
           <div>
@@ -144,12 +159,15 @@ export default function Stays() {
           </div>
 
           <p className="stays-count">
-            {loading ? "Loading..." : `${filteredStays.length} ${
-              filteredStays.length === 1 ? "place" : "places"
-            } found`}
+            {loading
+              ? "Loading..."
+              : `${filteredStays.length} ${
+                  filteredStays.length === 1 ? "place" : "places"
+                } found`}
           </p>
         </div>
 
+        {/* Filters */}
         <div className="stays-filters">
           <div className="stays-type-filters">
             {stayTypes.map((type) => (
@@ -182,6 +200,7 @@ export default function Stays() {
           </label>
         </div>
 
+        {/* Loading */}
         {loading ? (
           <div className="stays-empty">
             <h3>Loading accommodations...</h3>
@@ -193,22 +212,19 @@ export default function Stays() {
             <p>{error}</p>
           </div>
         ) : filteredStays.length > 0 ? (
+          /* Stay cards */
           <div className="stays-grid">
             {filteredStays.map((stay) => (
               <article className="stay-card" key={stay.id}>
                 <div className="stay-image-wrapper">
                   <img
-                    src={
-                      stay.image ||
-                      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80"
-                    }
+                    src={stay.image || FALLBACK_IMAGE}
                     alt={stay.name}
                     className="stay-image"
                     loading="lazy"
                     onError={(e) => {
                       e.currentTarget.onerror = null;
-                      e.currentTarget.src =
-                        "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
+                      e.currentTarget.src = FALLBACK_IMAGE;
                     }}
                   />
 
@@ -242,7 +258,7 @@ export default function Stays() {
                     </div>
 
                     <span className="stay-rating">
-                      ★ {stay.rating.toFixed(1)}
+                      ★ {Number(stay.rating).toFixed(1)}
                     </span>
                   </div>
 
@@ -271,6 +287,7 @@ export default function Stays() {
         )}
       </section>
 
+      {/* Call to action */}
       <section className="stays-cta">
         <h2>Your next Sri Lankan adventure starts here.</h2>
 
